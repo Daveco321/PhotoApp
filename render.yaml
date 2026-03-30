@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: versa-photo-studio
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
+    envVars:
+      - key: DROPBOX_ACCESS_TOKEN
+        sync: false
+      - key: DROPBOX_REFRESH_TOKEN
+        sync: false
+      - key: DROPBOX_APP_KEY
+        sync: false
+      - key: DROPBOX_APP_SECRET
+        sync: false
+      - key: DROPBOX_BASE_PATH
+        value: /Ecom_Photos
+      - key: PYTHON_VERSION
+        value: 3.11.0
