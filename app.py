@@ -413,6 +413,28 @@ def api_scan():
     return jsonify({'status': 'scan_started'})
 
 
+@app.route('/api/browse')
+def api_browse():
+    """Browse Dropbox folders to discover the correct path. Usage: /api/browse?path=/"""
+    browse_path = request.args.get('path', '').strip()
+    if not browse_path:
+        browse_path = ''  # root
+    try:
+        dbx = get_dbx()
+        result = dbx.files_list_folder(browse_path if browse_path else '', recursive=False)
+        items = []
+        for entry in result.entries:
+            items.append({
+                'name': entry.name,
+                'path': entry.path_display,
+                'type': 'folder' if isinstance(entry, FolderMetadata) else 'file',
+            })
+        items.sort(key=lambda x: (x['type'] == 'file', x['name'].lower()))
+        return jsonify({'path': browse_path or '/', 'items': items, 'count': len(items)})
+    except Exception as e:
+        return jsonify({'error': str(e), 'path': browse_path}), 400
+
+
 @app.route('/api/index')
 def api_index():
     """Return the full photo index (lightweight — paths only, no temp links)."""
