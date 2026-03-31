@@ -168,6 +168,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .empty-text{color:rgba(255,255,255,0.5);font-size:15px}
 .toast{position:fixed;bottom:20px;right:20px;padding:14px 22px;background:var(--glass);color:var(--text-dark);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:2000;animation:slideUp 0.3s ease;font-size:13px;font-weight:600}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* AI Chat Widget */
+.ai-btn{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;font-size:24px;cursor:pointer;box-shadow:0 4px 16px rgba(102,126,234,0.4);z-index:200;display:flex;align-items:center;justify-content:center;transition:transform 0.2s}
+.ai-btn:hover{transform:scale(1.08)}
+.ai-panel{position:fixed;bottom:88px;right:20px;width:420px;max-width:calc(100vw - 40px);height:520px;max-height:60vh;background:rgba(15,15,20,0.97);backdrop-filter:blur(20px);border-radius:16px;border:1px solid rgba(255,255,255,0.1);z-index:200;display:none;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.5)}
+.ai-panel.open{display:flex}
+.ai-panel-hdr{padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between}
+.ai-panel-hdr h3{color:white;font-size:15px;font-weight:700}
+.ai-panel-hdr span{font-size:11px;color:rgba(255,255,255,0.4)}
+.ai-msgs{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.ai-msg{max-width:90%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;word-wrap:break-word}
+.ai-msg.user{background:var(--purple);color:white;align-self:flex-end;border-bottom-right-radius:4px}
+.ai-msg.bot{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.9);align-self:flex-start;border-bottom-left-radius:4px}
+.ai-msg.bot .action-btn{display:inline-block;margin-top:6px;padding:5px 12px;background:var(--success);color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+.ai-msg.bot .action-btn:hover{opacity:0.85}
+.ai-input-area{padding:10px 12px;border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:8px}
+.ai-input{flex:1;padding:10px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:rgba(255,255,255,0.06);color:white;font-size:13px;font-family:inherit;outline:none}
+.ai-input:focus{border-color:var(--purple)}
+.ai-input::placeholder{color:rgba(255,255,255,0.3)}
+.ai-send{width:38px;height:38px;border:none;border-radius:10px;background:var(--purple);color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.ai-typing{color:rgba(255,255,255,0.4);font-size:12px;font-style:italic;padding:4px 0}
 @media(max-width:768px){.header{padding:14px 16px}.search-area{padding:16px 16px 12px}.main{padding:0 16px 40px}.brands-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.styles-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.expanded-inner{padding:16px}.expanded-title{font-size:22px}.stats-bar{gap:24px}.stat-value{font-size:22px}.header-title{font-size:18px}.cart-panel{width:100%;max-width:100%}}
 </style>
 </head>
@@ -251,6 +271,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="lightbox-label" id="lightboxLabel"></div>
     <button class="lightbox-download" onclick="event.stopPropagation();downloadLightboxImage()">↓ Download</button>
 </div>
+<!-- AI Chat Widget -->
+<button class="ai-btn" id="aiBtn" onclick="toggleAI()" title="AI Assistant">✨</button>
+<div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-hdr"><div><h3>✨ Photo Studio AI</h3><span>Image analysis & smart rename</span></div><button onclick="toggleAI()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:18px;cursor:pointer">✕</button></div>
+    <div class="ai-msgs" id="aiMsgs">
+        <div class="ai-msg bot">Hi! I can help you with:<br><br>📸 <b>Analyze images</b> — "What's in my cart?"<br>✏️ <b>Smart rename</b> — "Rename model images to Front, Back, Side"<br>🔍 <b>Search</b> — "Find NA 201"<br><br>Try: <i>"Rename all model images in my cart"</i></div>
+    </div>
+    <div class="ai-input-area">
+        <input type="text" class="ai-input" id="aiInput" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendAI()">
+        <button class="ai-send" onclick="sendAI()">➤</button>
+    </div>
+</div>
 <script>
 const API=window.location.origin;
 const S3O='https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/STYLE+OVERRIDES';
@@ -263,7 +295,7 @@ let photoIndex={},currentFilter='all',currentResults=[],lightboxImages=[],lightb
 let cart={};// key="brand::style" → {brandFolder,brandInfo,styleCode,folderName,images:[{path,filename,customName,angle,type,url}]}
 let expandedImgs=[];
 let currentExpBrand='',currentExpStyle='',currentExpBrandInfo=null;
-let shareMode=false,shareStyles=[];
+let shareMode=false,shareStyles=[],shareId='',shareData=null;
 const styleColorMap={};// style_code → [color1, color2, ...]
 const overrideMap={};// style_code → {color, image, fabrication, fit}
 const INVENTORY_API='https://versa-inventory-api.onrender.com';
@@ -327,13 +359,16 @@ function formatPaste(raw){const parts=raw.split(/[,\n\t]+|\s{2,}/).map(s=>s.trim
 document.addEventListener('DOMContentLoaded',()=>{
     const params=new URLSearchParams(window.location.search);
     const sh=params.get('share')||params.get('s');
-    if(sh){shareMode=true;shareStyles=sh.split(',').map(s=>s.trim()).filter(Boolean);
+    shareId=params.get('id')||'';
+    if(sh||shareId){shareMode=true;
+        if(sh)shareStyles=sh.split(',').map(s=>s.trim()).filter(Boolean);
         document.getElementById('searchArea').style.display='none';
         document.getElementById('scanBtn').style.display='none';
         document.querySelector('.cart-btn').style.display='none';
         document.getElementById('statusPill').style.display='none';
         document.querySelector('.header-left').style.cursor='default';
         document.querySelector('.header-left').onclick=null;
+        document.getElementById('aiBtn').style.display='none';
     }
     loadIndex();
     loadColorMap();
@@ -352,7 +387,14 @@ async function loadIndex(){
     try{const r=await fetch(API+'/api/index');if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();
     if(d.scan_status&&d.scan_status.scanning){showLoading(d.scan_status.progress||'Scanning...');startPolling();return;}
     if(d.brands&&Object.keys(d.brands).length>0){photoIndex=d.brands;if(d.s3_folder_map)Object.assign(S3M,d.s3_folder_map);
-        if(shareMode){executeSearch(shareStyles.join(','));showShareBanner();}else renderHome();updateStatus('ready');
+        if(shareMode){
+            if(shareId){
+                // Load saved share with specific image selections
+                try{const sr=await fetch(API+'/api/share/'+shareId);const sd=await sr.json();
+                if(sd.items){shareData=sd;shareStyles=sd.items.map(i=>i.style_code);}}catch(e){}
+            }
+            executeSearch(shareStyles.join(','));showShareBanner();
+        }else renderHome();updateStatus('ready');
     }else if(d.scan_status&&d.scan_status.last_scan){showLoading('Loading...');setTimeout(loadIndex,2000);}
     else{
         if(shareMode){showLoading('Loading shared collection...');setTimeout(loadIndex,2000);}
@@ -378,7 +420,11 @@ function searchBrand(f){
     currentFilter='all';document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter==='all'));
     executeSearch(b.info?.full||f);
 }
-function showShareBanner(){const b=document.getElementById('shareBanner');b.style.display='';b.innerHTML='<div class="share-banner"><div class="share-banner-text">📸 Shared collection — '+shareStyles.length+' style(s)</div><button class="share-banner-btn" onclick="downloadAllShared()">↓ Download All as ZIP</button></div>';}
+function showShareBanner(){const b=document.getElementById('shareBanner');b.style.display='';
+const count=shareData?shareData.items.length:shareStyles.length;
+const imgCount=shareData?shareData.items.reduce((s,i)=>s+i.images.length,0):0;
+const detail=imgCount?' · '+imgCount+' images':'';
+b.innerHTML='<div class="share-banner"><div class="share-banner-text">📸 Shared collection — '+count+' style(s)'+detail+'</div><button class="share-banner-btn" onclick="downloadAllShared()">↓ Download All as ZIP</button></div>';}
 function onSearchInput(e){clearTimeout(searchTimeout);currentBrowseBrand='';
 const raw=e.target.value;const q=raw.trim();if(!q){renderHome();return;}
 searchTimeout=setTimeout(()=>{
@@ -513,8 +559,14 @@ async function openStyle(bf,sc){
     try{
         const r=await fetch(API+'/api/images/'+encodeURIComponent(bf)+'/'+encodeURIComponent(sc));const d=await r.json();
         if(d.error){c.innerHTML='<div class="empty-state"><div class="empty-text">'+esc(d.error)+'</div></div>';return;}
+        // If share data exists, only show selected images for this style
+        let allowedPaths=null;
+        if(shareData&&shareData.items){const si=shareData.items.find(i=>i.style_code===sc);
+            if(si)allowedPaths=new Set(si.images.map(i=>i.path));}
         let html='';lightboxImages=[];
-        ['ghost','model','other'].forEach(type=>{const imgs=d.images[type];if(!imgs||!imgs.length)return;
+        ['ghost','model','other'].forEach(type=>{let imgs=d.images[type];if(!imgs||!imgs.length)return;
+            if(allowedPaths)imgs=imgs.filter(img=>allowedPaths.has(img.path));
+            if(!imgs.length)return;
             const tc=type==='ghost'?'ghost-title':type==='model'?'model-title':'';
             const label=type.charAt(0).toUpperCase()+type.slice(1);
             html+='<div class="expanded-section"><div class="expanded-section-title '+tc+'"><div class="dot"></div>'+label+' Photography ('+imgs.length+')</div><div class="expanded-images">';
@@ -630,13 +682,22 @@ async function downloadZip(){
 }
 
 // ── Share ──
-function generateShareLink(){
+async function generateShareLink(){
     const keys=Object.keys(cart);
-    let styles;
-    if(keys.length){styles=keys.map(k=>cart[k].styleCode);}else if(currentResults.length){styles=currentResults.map(r=>r.style_code);}
-    if(!styles||!styles.length){toast('Add styles to cart or search first');return;}
-    const url=window.location.origin+'/share?s='+encodeURIComponent(styles.join(','));
-    navigator.clipboard.writeText(url).then(()=>toast('Share link copied!')).catch(()=>{prompt('Copy this link:',url);});
+    if(!keys.length){toast('Add styles to cart first');return;}
+    // Build share items from cart (includes specific image selections)
+    const items=keys.map(k=>{const c=cart[k];return{
+        style_code:c.styleCode,brand:c.brandInfo?.full||c.brandFolder,brand_folder:c.brandFolder,
+        images:c.images.map(img=>({path:img.path,filename:img.filename,angle:img.angle,type:img.type}))
+    };});
+    try{
+        const resp=await fetch(API+'/api/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
+        const data=await resp.json();
+        if(data.share_id){
+            const url=window.location.origin+'/share?id='+data.share_id;
+            navigator.clipboard.writeText(url).then(()=>toast('Share link copied!')).catch(()=>{prompt('Copy this link:',url);});
+        }else{toast('Failed to create share link');}
+    }catch(e){toast('Error: '+e.message);}
 }
 async function downloadAllShared(){
     if(!currentResults.length)return;
@@ -644,17 +705,18 @@ async function downloadAllShared(){
     const items=[];
     for(const r of currentResults){
         try{const resp=await fetch(API+'/api/images/'+encodeURIComponent(r.brand_folder)+'/'+encodeURIComponent(r.style_code));const d=await resp.json();
+            // If share data exists, only include selected images
+            let allowedPaths=null;
+            if(shareData&&shareData.items){const si=shareData.items.find(i=>i.style_code===r.style_code);
+                if(si)allowedPaths=new Set(si.images.map(i=>i.path));}
             const paths=[];const urls={};const base64s={};
-            ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(img=>paths.push(img.path));});
-            // If no Dropbox images, try S3/override as fallback
+            ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(img=>{
+                if(!allowedPaths||allowedPaths.has(img.path))paths.push(img.path);
+            });});
             if(!paths.length){
                 const ovImg=getOverrideImage(r.style_code);
-                if(ovImg){const p='override://'+r.style_code;paths.push(p);base64s[p]=ovImg;}
-                else{
-                    const ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;
-                    const s3url=S3O+'/'+r.style_code+'.jpg';
-                    const p='s3://'+r.style_code;paths.push(p);urls[p]=s3url;
-                }
+                if(ovImg){const p='override://'+r.style_code;if(!allowedPaths||allowedPaths.has(p)){paths.push(p);base64s[p]=ovImg;}}
+                else{const ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;const s3url=S3O+'/'+r.style_code+'.jpg';const p='s3://'+r.style_code;paths.push(p);urls[p]=s3url;}
             }
             if(paths.length)items.push({style_code:r.style_code,brand:r.brand_info?.full||r.brand_folder,paths,urls,base64:base64s});}catch(e){}
     }
@@ -702,6 +764,146 @@ toast('Downloaded: '+img.filename);
 }}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"&#39;");}
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
+
+// ── AI Chat ──
+let aiHistory=[];
+function toggleAI(){document.getElementById('aiPanel').classList.toggle('open');}
+
+function addAiMsg(role,html){
+const msgs=document.getElementById('aiMsgs');
+const d=document.createElement('div');d.className='ai-msg '+role;d.innerHTML=html;
+msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;}
+
+async function sendAI(){
+const inp=document.getElementById('aiInput');const msg=inp.value.trim();if(!msg)return;
+inp.value='';addAiMsg('user',esc(msg));
+
+// Build context about cart
+const cartKeys=Object.keys(cart);
+let cartContext='';
+if(cartKeys.length){
+    cartContext='\n\nCurrent cart contents:\n';
+    cartKeys.forEach(k=>{const c=cart[k];
+        cartContext+=`- ${c.styleCode} (${c.brandInfo?.full||c.brandFolder}): ${c.images.length} images [${c.images.map(i=>i.filename).join(', ')}]\n`;
+    });
+}
+
+// Check if this is a rename request that needs image analysis
+const isRename=msg.toLowerCase().includes('rename');
+const needsVision=isRename&&cartKeys.length>0;
+
+if(needsVision){
+    addAiMsg('bot','<div class="ai-typing">Analyzing images...</div>');
+    await aiAnalyzeAndRename(msg);
+    return;
+}
+
+// Regular chat
+aiHistory.push({role:'user',content:msg+cartContext});
+addAiMsg('bot','<div class="ai-typing">Thinking...</div>');
+
+try{
+    const r=await fetch(API+'/api/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({messages:aiHistory})});
+    const d=await r.json();
+    if(d.error){removeLast();addAiMsg('bot','❌ '+esc(d.error));return;}
+    
+    // Process response
+    let text='';let toolCalls=[];
+    (d.content||[]).forEach(b=>{
+        if(b.type==='text')text+=b.text;
+        if(b.type==='tool_use')toolCalls.push(b);
+    });
+    
+    removeLast();
+    if(text)addAiMsg('bot',formatAiText(text));
+    
+    // Handle tool calls
+    for(const tc of toolCalls){
+        if(tc.name==='rename_images'&&tc.input?.renames){
+            const renames=tc.input.renames;
+            applyAiRenames(renames);
+        }
+        if(tc.name==='search_styles'&&tc.input?.query){
+            document.getElementById('searchInput').value=tc.input.query;
+            executeSearch(tc.input.query);
+            addAiMsg('bot','🔍 Searched for: <b>'+esc(tc.input.query)+'</b>');
+        }
+    }
+    
+    aiHistory.push({role:'assistant',content:text||JSON.stringify(d.content)});
+}catch(e){removeLast();addAiMsg('bot','❌ Error: '+esc(e.message));}
+}
+
+async function aiAnalyzeAndRename(instruction){
+const cartKeys=Object.keys(cart);if(!cartKeys.length){removeLast();addAiMsg('bot','Cart is empty — add images first.');return;}
+
+let totalRenamed=0;
+for(const k of cartKeys){
+    const item=cart[k];
+    // Collect images that need analysis — get viewable URLs
+    const images=[];
+    for(const img of item.images){
+        let url=img.url;
+        // If no URL stored (fast mode), get a temp link
+        if(!url||url===''){
+            try{const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
+                const d=await r.json();
+                ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(di=>{
+                    if(di.path===img.path){url=di.url;img.url=url;}
+                });});
+            }catch(e){}
+        }
+        if(url)images.push({url,filename:img.filename,style_code:item.styleCode});
+    }
+    
+    if(!images.length)continue;
+    
+    removeLast();addAiMsg('bot','<div class="ai-typing">Analyzing '+item.styleCode+' ('+images.length+' images)...</div>');
+    
+    try{
+        const r=await fetch(API+'/api/ai/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({images,instruction})});
+        const d=await r.json();
+        
+        if(d.suggestions&&d.suggestions.length){
+            d.suggestions.forEach(s=>{
+                const img=item.images.find(i=>i.filename===s.filename);
+                if(img){
+                    const ext=img.filename.includes('.')?'.'+img.filename.split('.').pop():'';
+                    img.customName=s.suggested_name+(ext&&!s.suggested_name.includes('.')?ext:'');
+                    totalRenamed++;
+                }
+            });
+        }
+    }catch(e){console.warn('Analyze failed for',item.styleCode,e);}
+}
+
+saveCart();renderCart();removeLast();
+if(totalRenamed>0){
+    addAiMsg('bot','✅ Renamed <b>'+totalRenamed+'</b> images across <b>'+cartKeys.length+'</b> styles. Open the cart to see the new names!<br><button class="action-btn" onclick="toggleCart()">Open Cart</button>');
+}else{
+    addAiMsg('bot','No images could be analyzed. Make sure images are loaded in the cart.');
+}
+}
+
+function applyAiRenames(renames){
+let count=0;
+renames.forEach(r=>{
+    for(const k of Object.keys(cart)){
+        if(cart[k].styleCode===r.style_code){
+            const img=cart[k].images.find(i=>i.filename===r.original_filename);
+            if(img){const ext=img.filename.includes('.')?'.'+img.filename.split('.').pop():'';
+                img.customName=r.new_name+(ext&&!r.new_name.includes('.')?ext:'');count++;}
+        }
+    }
+});
+if(count){saveCart();renderCart();updateCartBadge();
+    addAiMsg('bot','✅ Renamed <b>'+count+'</b> files. <button class="action-btn" onclick="toggleCart()">Open Cart</button>');}
+}
+
+function removeLast(){const msgs=document.getElementById('aiMsgs');const last=msgs.lastElementChild;if(last&&last.querySelector('.ai-typing'))last.remove();}
+function formatAiText(t){return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
 </script>
 </body>
 </html>
