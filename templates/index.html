@@ -203,18 +203,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div id="resultsSection" style="display:none">
         <div class="back-bar" id="backBar" style="display:none"><button class="back-btn" onclick="goHome()">← Back</button><span id="backBrandName" style="color:white;font-weight:700;font-size:18px"></span></div>
         <div class="results-header"><div><div class="results-title" id="resultsTitle">Results</div><div class="results-count" id="resultsCount"></div></div>
-            <div style="display:flex;gap:6px;align-items:center">
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                 <div class="filter-tabs"><button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All</button><button class="filter-tab" data-filter="ecom" onclick="setFilter('ecom')">Ecom</button><button class="filter-tab" data-filter="ghost" onclick="setFilter('ghost')">Ghost</button><button class="filter-tab" data-filter="model" onclick="setFilter('model')">Model</button><button class="filter-tab" data-filter="both" onclick="setFilter('both')">Ghost & Model</button></div>
-                <button class="grid-tb-btn select" id="selectModeBtn" onclick="toggleSelectMode()" style="display:none">☑ Select</button>
+            </div>
+            <div id="selectionBtns" style="display:none;gap:6px;align-items:center">
+                <button class="grid-tb-btn select" onclick="selectAllAndEnter()">Select All</button>
+                <button class="grid-tb-btn select" id="selectModeBtn" onclick="toggleSelectMode()">☑ Select</button>
             </div>
         </div>
         <div class="styles-grid" id="stylesGrid"></div>
         <div class="grid-toolbar" id="gridToolbar" style="display:none">
             <div class="grid-toolbar-left"><span id="gridSelCount">0</span> styles selected</div>
             <div class="grid-toolbar-right">
-                <button class="grid-tb-btn select" onclick="toggleSelectAllGrid()">Select All</button>
                 <button class="grid-tb-btn cart" id="gridCartBtn" onclick="addGridSelectionToCart()">+ Add All to Cart</button>
-                <button class="grid-tb-btn select" onclick="toggleSelectMode()" style="color:#f87171">✕ Done</button>
+                <button class="grid-tb-btn select" onclick="clearGridSelection()">Clear</button>
             </div>
         </div>
     </div>
@@ -408,7 +410,7 @@ async function executeSearch(q){try{const r=await fetch(API+'/api/search?q='+enc
 function renderResults(q){document.getElementById('loadingState').style.display='none';document.getElementById('brandsSection').style.display='none';document.getElementById('statsBar').style.display='none';
 if(!currentResults.length){document.getElementById('resultsSection').style.display='none';document.getElementById('emptyState').style.display='';return;}
 document.getElementById('emptyState').style.display='none';document.getElementById('resultsSection').style.display='';
-document.getElementById('selectModeBtn').style.display=shareMode?'none':'';
+document.getElementById('selectionBtns').style.display=shareMode?'none':'flex';
 if(selectMode){selectMode=false;document.getElementById('stylesGrid').classList.remove('select-mode');document.getElementById('selectModeBtn').textContent='☑ Select';document.getElementById('selectModeBtn').style.background='';document.getElementById('selectModeBtn').style.color='';document.getElementById('selectModeBtn').style.borderColor='';gridSelected.clear();}
 const bb=document.getElementById('backBar'),bn=document.getElementById('backBrandName');
 if(currentBrowseBrand){bb.style.display='flex';bn.textContent=currentBrowseBrand;document.getElementById('resultsTitle').textContent='';document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'');}
@@ -434,10 +436,19 @@ function toggleSelectMode(){
     selectMode=!selectMode;
     const grid=document.getElementById('stylesGrid');
     const btn=document.getElementById('selectModeBtn');
-    if(selectMode){grid.classList.add('select-mode');btn.textContent='✕ Cancel';btn.style.background='rgba(248,113,113,0.2)';btn.style.color='#f87171';btn.style.borderColor='rgba(248,113,113,0.4)';document.getElementById('gridToolbar').style.display='flex';}
+    if(selectMode){grid.classList.add('select-mode');btn.textContent='✕ Cancel';btn.style.background='rgba(248,113,113,0.2)';btn.style.color='#f87171';btn.style.borderColor='rgba(248,113,113,0.4)';}
     else{grid.classList.remove('select-mode');btn.textContent='☑ Select';btn.style.background='';btn.style.color='';btn.style.borderColor='';gridSelected.clear();renderStyleCards(currentResults);}
     updateGridToolbar();
 }
+function selectAllAndEnter(){
+    if(!selectMode){selectMode=true;document.getElementById('stylesGrid').classList.add('select-mode');
+    const btn=document.getElementById('selectModeBtn');btn.textContent='✕ Cancel';btn.style.background='rgba(248,113,113,0.2)';btn.style.color='#f87171';btn.style.borderColor='rgba(248,113,113,0.4)';}
+    // Select all visible styles
+    const visible=currentResults.filter(r=>{if(currentFilter==='ecom')return r.ghost_count>0||r.model_count>0||r.other_count>0;if(currentFilter==='ghost')return r.ghost_count>0;if(currentFilter==='model')return r.model_count>0;if(currentFilter==='both')return r.ghost_count>0&&r.model_count>0;return true;});
+    visible.forEach(r=>gridSelected.add(r.brand_folder+'::'+r.style_code));
+    renderStyleCards(currentResults);
+}
+function clearGridSelection(){gridSelected.clear();renderStyleCards(currentResults);updateGridToolbar();}
 function styleCardClick(bf,sc){
     if(selectMode){toggleGridSelect(bf,sc);}
     else{openStyle(bf,sc);}
@@ -447,13 +458,8 @@ if(gridSelected.has(key)){gridSelected.delete(key);}else{gridSelected.add(key);}
 const el=document.getElementById('gsc_'+bf+'_'+sc);
 if(el){if(gridSelected.has(key)){el.classList.add('checked');el.textContent='✓';}else{el.classList.remove('checked');el.textContent='';}}
 updateGridToolbar();}
-function toggleSelectAllGrid(){
-const visible=currentResults.filter(r=>{if(currentFilter==='ecom')return r.ghost_count>0||r.model_count>0||r.other_count>0;if(currentFilter==='ghost')return r.ghost_count>0;if(currentFilter==='model')return r.model_count>0;if(currentFilter==='both')return r.ghost_count>0&&r.model_count>0;return true;});
-const allSel=visible.every(r=>gridSelected.has(r.brand_folder+'::'+r.style_code));
-visible.forEach(r=>{const key=r.brand_folder+'::'+r.style_code;if(allSel)gridSelected.delete(key);else gridSelected.add(key);});
-renderStyleCards(currentResults);}
 function updateGridToolbar(){const tb=document.getElementById('gridToolbar');const ct=document.getElementById('gridSelCount');
-if(!tb)return;if(gridSelected.size>0&&!shareMode){tb.style.display='flex';ct.textContent=gridSelected.size;}else{tb.style.display='none';}}
+if(!tb)return;if(gridSelected.size>0&&!shareMode&&selectMode){tb.style.display='flex';ct.textContent=gridSelected.size;}else{tb.style.display='none';}}
 async function addGridSelectionToCart(){
 if(!gridSelected.size){toast('Select styles first');return;}
 const btn=document.getElementById('gridCartBtn');btn.disabled=true;btn.textContent='⏳ Loading '+gridSelected.size+' styles...';
@@ -590,7 +596,10 @@ body.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||it
 return'<div class="cart-item">'+
 '<div class="cart-item-header"><div><div class="cart-item-title">'+esc(item.styleCode)+'</div><div class="cart-item-brand">'+esc(bn)+'</div></div><button class="cart-item-remove" onclick="removeFromCart(\''+ek+'\')">✕</button></div>'+
 '<div style="margin:8px 0"><label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Folder Name</label><input type="text" value="'+esc(item.folderName||'')+'" onchange="updateFolderName(\''+ek+'\',this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-size:12px;font-family:inherit;outline:none;margin-top:2px"></div>'+
-'<div class="cart-item-images">'+item.images.slice(0,6).map(img=>{const thumbUrl=img.url||S3O+'/'+item.styleCode+'.jpg';return'<img class="cart-thumb" src="'+esc(thumbUrl)+'" alt="'+esc(img.filename)+'" onerror="this.style.opacity=0.3">';}).join('')+
+'<div class="cart-item-images">'+item.images.slice(0,6).map(img=>{
+const ab=item.brandInfo?.abbr||'';const sf=S3M[ab]||ab;
+const thumbUrl=img.url||(getOverrideImage(item.styleCode))||S3O+'/'+item.styleCode+'.jpg';
+return'<img class="cart-thumb" src="'+esc(thumbUrl)+'" alt="'+esc(img.filename)+'" onerror="this.src=\''+S3I+'/'+sf+'/'+item.styleCode+'.jpg\';this.onerror=null">';}).join('')+
 (item.images.length>6?'<span style="color:rgba(255,255,255,0.4);font-size:11px;display:flex;align-items:center">+'+( item.images.length-6)+' more</span>':'')+
 '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="cart-item-count">'+item.images.length+' image(s)</div><button onclick="toggleCartExpand(\''+ek+'\')" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Rename files ▾</button></div>'+
 '<div id="cartfiles_'+sid+'" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto">'+item.images.map((img,idx)=>{
