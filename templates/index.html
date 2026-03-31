@@ -209,6 +209,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rs-img-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;z-index:2;backdrop-filter:blur(4px)}
 .rs-img-card:hover .rs-img-remove{opacity:1}
 .rs-img-remove:hover{background:rgba(239,68,68,0.8);color:white}
+.rs-img-card.pending-delete{border-color:rgba(239,68,68,0.7);background:rgba(239,68,68,0.1);opacity:0.7}
+.rs-img-card.pending-delete::after{content:'REMOVE';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(239,68,68,0.85);color:white;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;pointer-events:none}
 .rs-img-card img{width:100%;aspect-ratio:1;object-fit:contain;background:rgba(255,255,255,0.03)}
 .rs-img-info{padding:8px 10px}
 .rs-img-orig{font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -320,7 +322,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
         <div style="display:flex;align-items:center;gap:8px">
             <span id="rsStatus" style="font-size:12px;color:rgba(255,255,255,0.4)"></span>
-            <button class="rs-back" onclick="var c=removeDuplicates();addRsMsg('bot','✅ Removed <b>'+c+'</b> duplicates.')" style="border-color:rgba(245,158,11,0.3);color:#f59e0b">🧹 Remove Duplicates</button>
+            <button class="rs-back" onclick="var d=removeDuplicates();if(d.length)previewRemovals(d);else addRsMsg('bot','No duplicates found (checked by filename).')" style="border-color:rgba(245,158,11,0.3);color:#f59e0b">🧹 Remove Duplicates</button>
             <button class="rs-back" onclick="closeRenameStudio()" style="background:var(--purple);border-color:var(--purple)">Done & Close</button>
         </div>
     </div>
@@ -692,7 +694,31 @@ function clearCart(){cart={};saveCart();renderCart();updateCartBadge();}
 function saveCart(){try{sessionStorage.setItem('vps_cart',JSON.stringify(cart));}catch(e){}}
 function loadCart(){try{const s=sessionStorage.getItem('vps_cart');if(s)cart=JSON.parse(s);}catch(e){}updateCartBadge();}
 function updateCartBadge(){const n=Object.values(cart).reduce((a,c)=>a+c.images.length,0);document.getElementById('cartBadge').textContent=n||'';}
-function toggleCart(){document.getElementById('cartPanel').classList.toggle('open');document.getElementById('cartOverlay').classList.toggle('open');renderCart();}
+function toggleCart(){
+    const panel=document.getElementById('cartPanel');
+    const overlay=document.getElementById('cartOverlay');
+    panel.classList.toggle('open');overlay.classList.toggle('open');renderCart();
+    // Pre-load image URLs in background so Rename Studio opens instantly
+    if(panel.classList.contains('open'))hydrateCartImages();
+}
+let _hydrateRunning=false;
+async function hydrateCartImages(){
+    if(_hydrateRunning)return;_hydrateRunning=true;
+    const keys=Object.keys(cart);
+    for(const k of keys){
+        const item=cart[k];
+        if(item.images.every(img=>img.url&&img.url!==''))continue;
+        try{
+            const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
+            const d=await r.json();
+            if(d.images){const urlMap={};
+                ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(di=>{urlMap[di.path]=di.url;});});
+                item.images.forEach(img=>{if(urlMap[img.path])img.url=urlMap[img.path];});
+            }
+        }catch(e){}
+    }
+    saveCart();_hydrateRunning=false;
+}
 function updateFolderName(key,val){if(cart[key])cart[key].folderName=val;saveCart();}
 function updateFileName(key,imgIdx,val){if(cart[key]&&cart[key].images[imgIdx])cart[key].images[imgIdx].customName=val;saveCart();}
 function safeId(k){return k.replace(/[^a-zA-Z0-9]/g,'_');}
@@ -976,29 +1002,32 @@ async function hydrateRenameImages(){
     const keys=Object.keys(cart);
     for(const k of keys){
         const item=cart[k];const sid=safeId(k);
-        const badge=document.getElementById('rss_'+sid);
-        // Skip if all images already have URLs
-        if(item.images.every(img=>img.url&&img.url!==''))continue;
-        if(badge){badge.textContent='Loading images...';badge.style.color='#f59e0b';}
-        try{
-            const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
-            const d=await r.json();
-            if(d.images){
-                // Build lookup: path → url
-                const urlMap={};
-                ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(di=>{urlMap[di.path]=di.url;});});
-                // Update cart and DOM
-                item.images.forEach((img,idx)=>{
-                    if(urlMap[img.path]){
-                        img.url=urlMap[img.path];
-                        const imgEl=document.querySelector('#rsc_'+sid+'_'+idx+' img');
-                        if(imgEl)imgEl.src=img.url;
-                    }
-                });
+        const needsFetch=item.images.some(img=>!img.url||img.url==='');
+        if(needsFetch){
+            const badge=document.getElementById('rss_'+sid);
+            if(badge){badge.textContent='Loading images...';badge.style.color='#f59e0b';}
+            try{
+                const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
+                const d=await r.json();
+                if(d.images){const urlMap={};
+                    ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(di=>{urlMap[di.path]=di.url;});});
+                    item.images.forEach((img,idx)=>{
+                        if(urlMap[img.path]){img.url=urlMap[img.path];
+                            const imgEl=document.querySelector('#rsc_'+sid+'_'+idx+' img');
+                            if(imgEl)imgEl.src=img.url;}
+                    });
+                }
+                if(badge){badge.textContent='Ready';badge.style.color='rgba(255,255,255,0.3)';badge.style.background='';}
+            }catch(e){
+                const badge2=document.getElementById('rss_'+sid);
+                if(badge2){badge2.textContent='⚠ Load failed';badge2.style.color='#ef4444';}
             }
-            if(badge){badge.textContent='Ready';badge.style.color='rgba(255,255,255,0.3)';badge.style.background='';}
-        }catch(e){
-            if(badge){badge.textContent='⚠ Load failed';badge.style.color='#ef4444';}
+        } else {
+            // URLs already loaded — just update DOM
+            item.images.forEach((img,idx)=>{
+                if(img.url){const imgEl=document.querySelector('#rsc_'+sid+'_'+idx+' img');
+                    if(imgEl&&!imgEl.src.includes(img.url))imgEl.src=img.url;}
+            });
         }
     }
     saveCart();
@@ -1044,22 +1073,53 @@ function removeRsImage(cartKey,idx){
     // Re-hydrate since indices changed
     hydrateRenameImages();
 }
-function removeDuplicates(){
-    let removed=0;
+function removeDuplicates(targetStyle){
+    // Find duplicates by filename within each style
+    const toRemove=[];// [{cartKey, idx}]
     for(const k of Object.keys(cart)){
         const item=cart[k];
-        const seen=new Set();const keep=[];
-        for(const img of item.images){
-            const key=img.path||img.filename;
-            if(seen.has(key)){removed++;}
-            else{seen.add(key);keep.push(img);}
-        }
-        item.images=keep;
-        if(item.images.length===0)delete cart[k];
+        if(targetStyle&&item.styleCode!==targetStyle)continue;
+        const seen={};// filename → first index
+        item.images.forEach((img,idx)=>{
+            const fn=img.filename.toLowerCase();
+            if(seen[fn]!==undefined){toRemove.push({cartKey:k,idx,style:item.styleCode,filename:img.filename});}
+            else{seen[fn]=idx;}
+        });
     }
-    saveCart();updateCartBadge();renderRenameStudio();
-    hydrateRenameImages();
-    return removed;
+    return toRemove;
+}
+let pendingRemovals=[];
+function previewRemovals(removals,msg){
+    pendingRemovals=removals;
+    // Highlight in red
+    removals.forEach(r=>{
+        const card=document.getElementById('rsc_'+safeId(r.cartKey)+'_'+r.idx);
+        if(card)card.classList.add('pending-delete');
+    });
+    const styles=new Set(removals.map(r=>r.style));
+    addRsMsg('bot','Found <b>'+removals.length+'</b> duplicate'+(removals.length!==1?'s':'')+' across '+styles.size+' style'+(styles.size!==1?'s':'')+'.<br>Images marked in <span style="color:#ef4444;font-weight:700">red</span> will be removed.<br><br><button class="action-btn" onclick="confirmRemovals()" style="margin-right:6px">✅ Confirm Delete</button><button class="action-btn" onclick="cancelRemovals()" style="background:rgba(255,255,255,0.15)">Cancel</button>');
+}
+function confirmRemovals(){
+    // Sort by descending index so splices don't shift remaining indices
+    pendingRemovals.sort((a,b)=>a.cartKey===b.cartKey?b.idx-a.idx:0);
+    let count=0;
+    pendingRemovals.forEach(r=>{
+        if(cart[r.cartKey]&&cart[r.cartKey].images[r.idx]){
+            cart[r.cartKey].images.splice(r.idx,1);count++;
+            if(cart[r.cartKey].images.length===0)delete cart[r.cartKey];
+        }
+    });
+    pendingRemovals=[];
+    saveCart();updateCartBadge();renderRenameStudio();hydrateRenameImages();
+    addRsMsg('bot','✅ Removed <b>'+count+'</b> images.');
+}
+function cancelRemovals(){
+    pendingRemovals.forEach(r=>{
+        const card=document.getElementById('rsc_'+safeId(r.cartKey)+'_'+r.idx);
+        if(card)card.classList.remove('pending-delete');
+    });
+    pendingRemovals=[];
+    addRsMsg('bot','Cancelled — no images removed.');
 }
 function updateRsStatus(){
     let total=0,renamed=0;Object.values(cart).forEach(c=>{c.images.forEach(i=>{total++;if(i.customName)renamed++;});});
@@ -1073,21 +1133,81 @@ function addRsMsg(role,html){
 async function sendRsAI(){
     const inp=document.getElementById('rsInput');const msg=inp.value.trim();if(!msg)return;
     inp.value='';addRsMsg('user',esc(msg));
-    
-    // Check for duplicate removal command
     const lower=msg.toLowerCase();
-    if(lower.includes('duplicate')||lower.includes('dedup')||lower.includes('remove dup')){
-        const count=removeDuplicates();
-        addRsMsg('bot','✅ Removed <b>'+count+'</b> duplicate image'+(count!==1?'s':'')+'. '+Object.keys(cart).length+' styles remaining.');
+    
+    // Extract style code if mentioned
+    const styleMatch=msg.match(/\b([A-Z]{2})[_\s]?(\d{3})\b/i);
+    const targetStyle=styleMatch?(styleMatch[1].toUpperCase()+'_'+styleMatch[2]):null;
+    
+    // Duplicate removal commands
+    if(lower.includes('duplicate')||lower.includes('dedup')){
+        const dupes=removeDuplicates(targetStyle);
+        if(dupes.length){previewRemovals(dupes,'Found duplicates');}
+        else{addRsMsg('bot','No filename duplicates found'+(targetStyle?' on '+targetStyle:'')+'. If you see visually identical images with different filenames, tell me to <i>"delete identical images on '+( targetStyle||'BE_299')+'"</i> and I\'ll use AI vision to find them.');}
         return;
     }
     
+    // Delete/remove commands — use AI vision to identify which to remove
+    if(lower.includes('delete')||lower.includes('remove')){
+        if(!targetStyle&&!lower.includes('all')){
+            addRsMsg('bot','Which style? Tell me like: <i>"delete identical images on BE_299"</i>');return;
+        }
+        addRsMsg('bot','<div class="ai-typing">Analyzing images to find ones to remove...</div>');
+        await rsAiDelete(msg,targetStyle);
+        return;
+    }
+    
+    // Rename commands — use AI vision
     addRsMsg('bot','<div class="ai-typing">Starting analysis...</div>');
-    await rsAnalyzeAndRename(msg);
+    await rsAnalyzeAndRename(msg,targetStyle);
 }
-async function rsAnalyzeAndRename(instruction){
-    const cartKeys=Object.keys(cart);
-    if(!cartKeys.length){removeLastRs();addRsMsg('bot','Cart is empty.');return;}
+
+async function rsAiDelete(instruction,targetStyle){
+    const cartKeys=Object.keys(cart).filter(k=>!targetStyle||cart[k].styleCode===targetStyle);
+    if(!cartKeys.length){removeLastRs();addRsMsg('bot','No matching styles in cart.');return;}
+    
+    const toRemove=[];
+    for(const k of cartKeys){
+        const item=cart[k];const sid=safeId(k);
+        const badge=document.getElementById('rss_'+sid);
+        if(badge){badge.textContent='⏳ Analyzing...';badge.style.color='#f59e0b';badge.style.background='rgba(245,158,11,0.1)';}
+        removeLastRs();addRsMsg('bot','<div class="ai-typing">Analyzing '+item.styleCode+'...</div>');
+        
+        const images=[];
+        for(let i=0;i<item.images.length;i++){
+            const img=item.images[i];
+            if(img.url&&img.url!=='')images.push({url:img.url,filename:img.filename,style_code:item.styleCode,cart_idx:i});
+        }
+        if(!images.length){if(badge){badge.textContent='No URLs';badge.style.color='#ef4444';}continue;}
+        
+        try{
+            const aiInstruction=instruction+'\n\nRespond with a JSON array. For each image, include: {"filename":"...", "suggested_name":"KEEP" or "REMOVE", "description":"why"}. Mark visually identical/duplicate images as REMOVE (keep the first unique instance of each).';
+            const r=await fetch(API+'/api/ai/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({images,instruction:aiInstruction})});
+            const d=await r.json();
+            
+            if(d.suggestions){
+                d.suggestions.forEach(s=>{
+                    if(s.suggested_name==='REMOVE'||s.suggested_name==='DELETE'){
+                        const imgIdx=item.images.findIndex(i=>i.filename===s.filename);
+                        if(imgIdx>=0)toRemove.push({cartKey:k,idx:imgIdx,style:item.styleCode,filename:s.filename,reason:s.description||''});
+                    }
+                });
+            }
+            if(badge){badge.textContent='Done';badge.style.color='rgba(255,255,255,0.3)';badge.style.background='';}
+        }catch(e){if(badge){badge.textContent='❌ Error';badge.style.color='#ef4444';}}
+    }
+    
+    removeLastRs();
+    if(toRemove.length){
+        previewRemovals(toRemove);
+    }else{
+        addRsMsg('bot','AI found no images to remove. All images appear unique.');
+    }
+}
+async function rsAnalyzeAndRename(instruction,targetStyle){
+    const cartKeys=Object.keys(cart).filter(k=>!targetStyle||cart[k].styleCode===targetStyle);
+    if(!cartKeys.length){removeLastRs();addRsMsg('bot','No matching styles'+(targetStyle?' for '+targetStyle:'')+' in cart.');return;}
     let totalRenamed=0;
     for(const k of cartKeys){
         const item=cart[k];const sid=safeId(k);
