@@ -674,12 +674,12 @@ def api_index():
 
 @app.route('/api/images/<path:brand_folder>/<style_code>')
 def api_style_images(brand_folder, style_code):
-    """Get all images for a specific style with temporary download links."""
+    """Get all images for a specific style. Use ?links=false to skip Dropbox temp links (fast)."""
     style_code = style_code.upper()
+    skip_links = request.args.get('links', 'true').lower() == 'false'
     
     brand_data = photo_index.get(brand_folder)
     if not brand_data:
-        # Try case-insensitive match
         for k, v in photo_index.items():
             if k.upper() == brand_folder.upper():
                 brand_data = v
@@ -693,19 +693,28 @@ def api_style_images(brand_folder, style_code):
     if not style_data:
         return jsonify({'error': 'Style not found'}), 404
     
-    # Generate temp links for all images
     result = {'ghost': [], 'model': [], 'other': []}
     for ptype in ['ghost', 'model', 'other']:
         for img in style_data[ptype]:
-            url = get_temp_link(img['path'])
-            if url:
+            if skip_links:
+                # Fast mode: return paths only, no Dropbox API calls
                 result[ptype].append({
-                    'url': url,
+                    'url': '',
                     'filename': img['filename'],
                     'angle': img['angle'],
                     'dpi': img['dpi'],
                     'path': img['path'],
                 })
+            else:
+                url = get_temp_link(img['path'])
+                if url:
+                    result[ptype].append({
+                        'url': url,
+                        'filename': img['filename'],
+                        'angle': img['angle'],
+                        'dpi': img['dpi'],
+                        'path': img['path'],
+                    })
     
     return jsonify({
         'brand': brand_data['info'],
