@@ -189,7 +189,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .ai-send{width:38px;height:38px;border:none;border-radius:10px;background:var(--purple);color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 .ai-typing{color:rgba(255,255,255,0.4);font-size:12px;font-style:italic;padding:4px 0}
 /* Rename Studio */
-.rs-overlay{position:fixed;inset:0;background:var(--bg-main);z-index:300;display:none;flex-direction:column}
+.rs-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:#1a1a2e;z-index:999;display:none;flex-direction:column;overflow:hidden}
 .rs-overlay.open{display:flex}
 .rs-header{padding:12px 20px;background:rgba(15,15,20,0.95);border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between}
 .rs-header h2{color:white;font-size:18px;font-weight:700}
@@ -959,7 +959,12 @@ function formatAiText(t){return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(
 
 // ── Rename Studio ──
 function openRenameStudio(){
-    toggleCart();// close cart panel
+    // Close cart panel first
+    document.getElementById('cartPanel').classList.remove('open');
+    document.getElementById('cartOverlay').classList.remove('open');
+    // Close AI panel if open
+    document.getElementById('aiPanel').classList.remove('open');
+    // Open rename studio
     renderRenameStudio();
     document.getElementById('renameStudio').classList.add('open');
     document.body.style.overflow='hidden';
