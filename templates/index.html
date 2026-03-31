@@ -188,6 +188,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .ai-input::placeholder{color:rgba(255,255,255,0.3)}
 .ai-send{width:38px;height:38px;border:none;border-radius:10px;background:var(--purple);color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
 .ai-typing{color:rgba(255,255,255,0.4);font-size:12px;font-style:italic;padding:4px 0}
+/* Rename Studio */
+.rs-overlay{position:fixed;inset:0;background:var(--bg-main);z-index:300;display:none;flex-direction:column}
+.rs-overlay.open{display:flex}
+.rs-header{padding:12px 20px;background:rgba(15,15,20,0.95);border-bottom:1px solid rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:space-between}
+.rs-header h2{color:white;font-size:18px;font-weight:700}
+.rs-back{background:none;border:1px solid rgba(255,255,255,0.2);color:white;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px}
+.rs-back:hover{background:rgba(255,255,255,0.08)}
+.rs-body{flex:1;display:flex;overflow:hidden}
+.rs-content{flex:1;overflow-y:auto;padding:20px}
+.rs-chat{width:380px;border-left:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;background:rgba(10,10,15,0.95)}
+.rs-style{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:16px}
+.rs-style-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rs-style-title{font-size:16px;font-weight:700;color:white}
+.rs-style-brand{font-size:12px;color:rgba(255,255,255,0.5)}
+.rs-style-status{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.rs-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.rs-img-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;transition:border-color 0.3s}
+.rs-img-card.renamed{border-color:rgba(34,197,94,0.5);background:rgba(34,197,94,0.05)}
+.rs-img-card img{width:100%;aspect-ratio:1;object-fit:contain;background:rgba(255,255,255,0.03)}
+.rs-img-info{padding:8px 10px}
+.rs-img-orig{font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rs-img-name{width:100%;padding:6px 8px;border:1px solid rgba(255,255,255,0.12);border-radius:6px;background:rgba(255,255,255,0.06);color:white;font-size:12px;font-family:inherit;outline:none;transition:border-color 0.3s,background 0.3s}
+.rs-img-name:focus{border-color:var(--purple)}
+.rs-img-name.just-renamed{border-color:var(--success);background:rgba(34,197,94,0.1)}
+@keyframes flashGreen{0%{background:rgba(34,197,94,0.2)}100%{background:rgba(34,197,94,0.05)}}
 @media(max-width:768px){.header{padding:14px 16px}.search-area{padding:16px 16px 12px}.main{padding:0 16px 40px}.brands-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.styles-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.expanded-inner{padding:16px}.expanded-title{font-size:22px}.stats-bar{gap:24px}.stat-value{font-size:22px}.header-title{font-size:18px}.cart-panel{width:100%;max-width:100%}}
 </style>
 </head>
@@ -254,7 +279,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </div></div>
 <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 <div class="cart-panel" id="cartPanel">
-    <div class="cart-header"><div class="cart-title">🛒 Cart</div><div style="display:flex;gap:10px;align-items:center"><button class="cart-clear" onclick="clearCart()">Clear All</button><button class="expanded-close" onclick="toggleCart()" style="width:32px;height:32px;font-size:16px">✕</button></div></div>
+    <div class="cart-header"><div class="cart-title">🛒 Cart</div><div style="display:flex;gap:10px;align-items:center"><button class="cart-clear" onclick="openRenameStudio()" style="background:rgba(102,126,234,0.15);color:#667eea;border-color:rgba(102,126,234,0.3)">✏️ Rename Studio</button><button class="cart-clear" onclick="clearCart()">Clear All</button><button class="expanded-close" onclick="toggleCart()" style="width:32px;height:32px;font-size:16px">✕</button></div></div>
     <div class="cart-body" id="cartBody"></div>
     <div class="cart-footer">
         <button class="cart-footer-btn download" id="downloadZipBtn" onclick="downloadZip()">↓ Download ZIP</button>
@@ -281,6 +306,32 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="ai-input-area">
         <input type="text" class="ai-input" id="aiInput" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendAI()">
         <button class="ai-send" onclick="sendAI()">➤</button>
+    </div>
+</div>
+<!-- Rename Studio -->
+<div class="rs-overlay" id="renameStudio">
+    <div class="rs-header">
+        <div style="display:flex;align-items:center;gap:12px">
+            <button class="rs-back" onclick="closeRenameStudio()">← Back to Cart</button>
+            <h2>✏️ Rename Studio</h2>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span id="rsStatus" style="font-size:12px;color:rgba(255,255,255,0.4)"></span>
+            <button class="rs-back" onclick="closeRenameStudio()" style="background:var(--purple);border-color:var(--purple)">Done & Close</button>
+        </div>
+    </div>
+    <div class="rs-body">
+        <div class="rs-content" id="rsContent"></div>
+        <div class="rs-chat">
+            <div class="ai-panel-hdr"><div><h3>✨ AI Rename Assistant</h3><span>Describe how to rename</span></div></div>
+            <div class="ai-msgs" id="rsMsgs">
+                <div class="ai-msg bot">Tell me how to rename your images. I'll analyze each one and apply names in real-time.<br><br>Try:<br>• <i>"Rename model images to Front, Back, Side"</i><br>• <i>"Name ghost shots as Flat Front, Flat Back"</i><br>• <i>"Rename all images descriptively"</i></div>
+            </div>
+            <div class="ai-input-area">
+                <input type="text" class="ai-input" id="rsInput" placeholder="e.g. Rename model images to Front, Back, Side..." onkeydown="if(event.key==='Enter')sendRsAI()">
+                <button class="ai-send" onclick="sendRsAI()">➤</button>
+            </div>
+        </div>
     </div>
 </div>
 <script>
@@ -903,7 +954,120 @@ if(count){saveCart();renderCart();updateCartBadge();
 }
 
 function removeLast(){const msgs=document.getElementById('aiMsgs');const last=msgs.lastElementChild;if(last&&last.querySelector('.ai-typing'))last.remove();}
+function removeLastRs(){const msgs=document.getElementById('rsMsgs');const last=msgs.lastElementChild;if(last&&last.querySelector('.ai-typing'))last.remove();}
 function formatAiText(t){return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');}
+
+// ── Rename Studio ──
+function openRenameStudio(){
+    toggleCart();// close cart panel
+    renderRenameStudio();
+    document.getElementById('renameStudio').classList.add('open');
+    document.body.style.overflow='hidden';
+}
+function closeRenameStudio(){
+    document.getElementById('renameStudio').classList.remove('open');
+    document.body.style.overflow='';
+}
+function renderRenameStudio(){
+    const c=document.getElementById('rsContent');
+    const keys=Object.keys(cart);
+    if(!keys.length){c.innerHTML='<div style="text-align:center;padding:60px;color:rgba(255,255,255,0.4)"><div style="font-size:48px;margin-bottom:12px">📷</div><div style="font-size:16px">Cart is empty. Add styles first.</div></div>';return;}
+    let total=0;let renamed=0;
+    c.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||item.brandFolder;
+        return'<div class="rs-style" id="rs_'+safeId(k)+'"><div class="rs-style-hdr"><div><div class="rs-style-title">'+esc(item.styleCode)+'</div><div class="rs-style-brand">'+esc(bn)+' · '+item.images.length+' images</div></div><span class="rs-style-status" id="rss_'+safeId(k)+'" style="color:rgba(255,255,255,0.3)">Ready</span></div><div class="rs-images">'+
+        item.images.map((img,idx)=>{
+            total++;if(img.customName)renamed++;
+            const ab=item.brandInfo?.abbr||'';const sf=S3M[ab]||ab;
+            const thumbUrl=img.url||(getOverrideImage(item.styleCode))||S3O+'/'+item.styleCode+'.jpg';
+            const isRenamed=!!img.customName;
+            return'<div class="rs-img-card'+(isRenamed?' renamed':'')+'" id="rsc_'+safeId(k)+'_'+idx+'"><img src="'+esc(thumbUrl)+'" onerror="this.src=\''+S3I+'/'+sf+'/'+item.styleCode+'.jpg\';this.onerror=null" loading="lazy"><div class="rs-img-info"><div class="rs-img-orig" title="'+esc(img.filename)+'">'+esc(img.filename)+'</div><input type="text" class="rs-img-name'+(isRenamed?' just-renamed':'')+'" value="'+esc(img.customName||'')+'" placeholder="'+esc(img.filename)+'" onchange="updateRsName(\''+esc(k)+'\','+idx+',this.value)" id="rsn_'+safeId(k)+'_'+idx+'"></div></div>';
+        }).join('')+'</div></div>';
+    }).join('');
+    document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
+}
+function updateRsName(cartKey,idx,val){
+    if(cart[cartKey]&&cart[cartKey].images[idx]){
+        const img=cart[cartKey].images[idx];
+        const ext=img.filename.includes('.')?'.'+img.filename.split('.').pop():'';
+        img.customName=val?(val.includes('.')?val:val+ext):'';
+        saveCart();
+        const card=document.getElementById('rsc_'+safeId(cartKey)+'_'+idx);
+        if(card){if(val)card.classList.add('renamed');else card.classList.remove('renamed');}
+        // Update count
+        let total=0,renamed=0;Object.values(cart).forEach(c=>{c.images.forEach(i=>{total++;if(i.customName)renamed++;});});
+        document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
+    }
+}
+function addRsMsg(role,html){
+    const msgs=document.getElementById('rsMsgs');
+    const d=document.createElement('div');d.className='ai-msg '+role;d.innerHTML=html;
+    msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
+}
+async function sendRsAI(){
+    const inp=document.getElementById('rsInput');const msg=inp.value.trim();if(!msg)return;
+    inp.value='';addRsMsg('user',esc(msg));
+    addRsMsg('bot','<div class="ai-typing">Starting analysis...</div>');
+    await rsAnalyzeAndRename(msg);
+}
+async function rsAnalyzeAndRename(instruction){
+    const cartKeys=Object.keys(cart);
+    if(!cartKeys.length){removeLastRs();addRsMsg('bot','Cart is empty.');return;}
+    let totalRenamed=0;
+    for(const k of cartKeys){
+        const item=cart[k];const sid=safeId(k);
+        // Update status badge
+        const badge=document.getElementById('rss_'+sid);
+        if(badge){badge.textContent='⏳ Analyzing...';badge.style.color='#f59e0b';badge.style.background='rgba(245,158,11,0.1)';}
+        removeLastRs();addRsMsg('bot','<div class="ai-typing">Analyzing '+item.styleCode+' ('+item.images.length+' images)...</div>');
+        
+        // Collect images with URLs
+        const images=[];
+        for(let i=0;i<item.images.length;i++){
+            let img=item.images[i];let url=img.url;
+            if(!url||url===''){
+                try{const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
+                    const d=await r.json();
+                    ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(di=>{if(di.path===img.path){url=di.url;img.url=url;}});});
+                }catch(e){}
+            }
+            if(url)images.push({url,filename:img.filename,style_code:item.styleCode,cart_idx:i});
+        }
+        if(!images.length){if(badge){badge.textContent='No URLs';badge.style.color='#ef4444';}continue;}
+        
+        try{
+            const r=await fetch(API+'/api/ai/analyze',{method:'POST',headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({images,instruction})});
+            const d=await r.json();
+            
+            if(d.suggestions&&d.suggestions.length){
+                let styleRenamed=0;
+                d.suggestions.forEach(s=>{
+                    const imgIdx=item.images.findIndex(i=>i.filename===s.filename);
+                    if(imgIdx>=0){
+                        const img=item.images[imgIdx];
+                        const ext=img.filename.includes('.')?'.'+img.filename.split('.').pop():'';
+                        img.customName=s.suggested_name+(ext&&!s.suggested_name.includes('.')?ext:'');
+                        totalRenamed++;styleRenamed++;
+                        // Real-time DOM update
+                        const nameInput=document.getElementById('rsn_'+sid+'_'+imgIdx);
+                        if(nameInput){nameInput.value=img.customName;nameInput.classList.add('just-renamed');setTimeout(()=>nameInput.classList.remove('just-renamed'),2000);}
+                        const card=document.getElementById('rsc_'+sid+'_'+imgIdx);
+                        if(card){card.classList.add('renamed');card.style.animation='flashGreen 1s ease';}
+                    }
+                });
+                if(badge){badge.textContent='✅ '+styleRenamed+' renamed';badge.style.color='#22c55e';badge.style.background='rgba(34,197,94,0.1)';}
+            }else{
+                if(badge){badge.textContent='No matches';badge.style.color='#6b7280';}
+            }
+        }catch(e){if(badge){badge.textContent='❌ Error';badge.style.color='#ef4444';}console.warn(e);}
+        
+        saveCart();
+        let total=0,renamed=0;Object.values(cart).forEach(c=>{c.images.forEach(i=>{total++;if(i.customName)renamed++;});});
+        document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
+    }
+    removeLastRs();
+    addRsMsg('bot','✅ Done! Renamed <b>'+totalRenamed+'</b> images across <b>'+cartKeys.length+'</b> styles.');
+}
 </script>
 </body>
 </html>
