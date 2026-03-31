@@ -74,6 +74,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .style-card-info{padding:12px 14px 14px}
 .style-card-code{font-size:14px;font-weight:700}.style-card-meta{font-size:11px;color:var(--text-light);margin-top:3px}
 .style-card-color{font-size:11px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.style-card-check{position:absolute;bottom:8px;right:8px;width:24px;height:24px;border-radius:6px;border:2px solid rgba(255,255,255,0.6);background:rgba(0,0,0,0.3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;transition:all 0.15s;z-index:2;backdrop-filter:blur(4px)}
+.style-card-check:hover{border-color:white;background:rgba(0,0,0,0.5)}
+.style-card-check.checked{background:var(--success);border-color:var(--success)}
+.grid-toolbar{position:sticky;bottom:0;left:0;right:0;background:rgba(15,15,20,0.95);backdrop-filter:blur(12px);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid rgba(255,255,255,0.1);z-index:50;border-radius:12px 12px 0 0;margin:16px -8px 0}
+.grid-toolbar-left{display:flex;align-items:center;gap:10px;color:white;font-size:14px;font-weight:600}
+.grid-toolbar-right{display:flex;gap:8px}
+.grid-tb-btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all 0.2s}
+.grid-tb-btn.select{background:rgba(255,255,255,0.12);color:white;border:1px solid rgba(255,255,255,0.2)}
+.grid-tb-btn.select:hover{background:rgba(255,255,255,0.2)}
+.grid-tb-btn.cart{background:var(--purple);color:white}
+.grid-tb-btn.cart:hover{opacity:0.85}
+.grid-tb-btn.cart:disabled{opacity:0.5;cursor:not-allowed}
 /* Expanded */
 .style-expanded{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(16px);z-index:500;overflow-y:auto;display:none}
 .style-expanded.open{display:block}
@@ -192,6 +204,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
             <div class="filter-tabs"><button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All</button><button class="filter-tab" data-filter="ecom" onclick="setFilter('ecom')">Ecom</button><button class="filter-tab" data-filter="ghost" onclick="setFilter('ghost')">Ghost</button><button class="filter-tab" data-filter="model" onclick="setFilter('model')">Model</button><button class="filter-tab" data-filter="both" onclick="setFilter('both')">Ghost & Model</button></div>
         </div>
         <div class="styles-grid" id="stylesGrid"></div>
+        <div class="grid-toolbar" id="gridToolbar" style="display:none">
+            <div class="grid-toolbar-left"><span id="gridSelCount">0</span> styles selected</div>
+            <div class="grid-toolbar-right">
+                <button class="grid-tb-btn select" onclick="toggleSelectAllGrid()">Select All</button>
+                <button class="grid-tb-btn cart" id="gridCartBtn" onclick="addGridSelectionToCart()">+ Add All to Cart</button>
+            </div>
+        </div>
     </div>
     <div id="emptyState" class="empty-state" style="display:none"><div class="empty-icon">📷</div><div class="empty-text">No photos found.</div></div>
 </main>
@@ -397,7 +416,48 @@ const bd=[];if(r.ghost_count>0)bd.push('<span class="type-badge ghost">Ghost</sp
 const colors=getStyleColors(r.style_code);const colorText=colors.length?colors.slice(0,2).join(', ')+(colors.length>2?' +'+(colors.length-2):''):'';
 const meta=getStyleMeta(r.style_code);const metaParts=[];if(meta.fit)metaParts.push(meta.fit);metaParts.push(r.ghost_count+' ghost · '+r.model_count+' model');
 const imgTag=ovImg?'<img src="'+esc(tu)+'" alt="'+esc(r.style_code)+'" loading="lazy">':'<img src="'+esc(tu)+'" onerror="this.onerror=function(){this.style.display=\'none\';this.parentElement.innerHTML+=\'<div class=placeholder>'+esc(r.style_code)+'</div>\'};this.src=\''+esc(fu)+'\'" alt="'+esc(r.style_code)+'" loading="lazy">';
-return'<div class="style-card" onclick="openStyle(\''+esc(r.brand_folder)+'\',\''+esc(r.style_code)+'\')"><div class="style-card-thumb">'+imgTag+'<span class="brand-tag">'+esc(bn)+'</span><div class="type-badges">'+bd.join('')+'</div></div><div class="style-card-info"><div class="style-card-code">'+esc(r.style_code)+'</div>'+(colorText?'<div class="style-card-color">'+esc(colorText)+'</div>':'')+'<div class="style-card-meta">'+esc(metaParts.join(' · '))+'</div></div></div>';}).join('');}
+return'<div class="style-card" onclick="openStyle(\''+esc(r.brand_folder)+'\',\''+esc(r.style_code)+'\')"><div class="style-card-thumb">'+imgTag+'<span class="brand-tag">'+esc(bn)+'</span><div class="type-badges">'+bd.join('')+'</div>'+
+(!shareMode?'<div class="style-card-check'+(gridSelected.has(r.brand_folder+'::'+r.style_code)?' checked':'')+'" id="gsc_'+esc(r.brand_folder+'_'+r.style_code)+'" onclick="event.stopPropagation();toggleGridSelect(\''+esc(r.brand_folder)+'\',\''+esc(r.style_code)+'\')">'+(gridSelected.has(r.brand_folder+'::'+r.style_code)?'✓':'')+'</div>':'')+
+'</div><div class="style-card-info"><div class="style-card-code">'+esc(r.style_code)+'</div>'+(colorText?'<div class="style-card-color">'+esc(colorText)+'</div>':'')+'<div class="style-card-meta">'+esc(metaParts.join(' · '))+'</div></div></div>';}).join('');
+updateGridToolbar();}
+const gridSelected=new Set();
+function toggleGridSelect(bf,sc){const key=bf+'::'+sc;
+if(gridSelected.has(key)){gridSelected.delete(key);}else{gridSelected.add(key);}
+const el=document.getElementById('gsc_'+bf+'_'+sc);
+if(el){if(gridSelected.has(key)){el.classList.add('checked');el.textContent='✓';}else{el.classList.remove('checked');el.textContent='';}}
+updateGridToolbar();}
+function toggleSelectAllGrid(){
+const visible=currentResults.filter(r=>{if(currentFilter==='ecom')return r.ghost_count>0||r.model_count>0||r.other_count>0;if(currentFilter==='ghost')return r.ghost_count>0;if(currentFilter==='model')return r.model_count>0;if(currentFilter==='both')return r.ghost_count>0&&r.model_count>0;return true;});
+const allSel=visible.every(r=>gridSelected.has(r.brand_folder+'::'+r.style_code));
+visible.forEach(r=>{const key=r.brand_folder+'::'+r.style_code;if(allSel)gridSelected.delete(key);else gridSelected.add(key);});
+renderStyleCards(currentResults);}
+function updateGridToolbar(){const tb=document.getElementById('gridToolbar');const ct=document.getElementById('gridSelCount');
+if(!tb)return;if(gridSelected.size>0&&!shareMode){tb.style.display='flex';ct.textContent=gridSelected.size;}else{tb.style.display='none';}}
+async function addGridSelectionToCart(){
+if(!gridSelected.size){toast('Select styles first');return;}
+const btn=document.getElementById('gridCartBtn');btn.disabled=true;btn.textContent='⏳ Loading...';
+let added=0;
+for(const key of gridSelected){
+    const[bf,sc]=key.split('::');
+    const brand=photoIndex[bf];
+    const cartK=cartKey(bf,sc);const bn=brand?.info?.full||bf;
+    if(!cart[cartK])cart[cartK]={brandFolder:bf,brandInfo:brand?.info,styleCode:sc,folderName:bn+' - '+sc,images:[]};
+    try{
+        const r=await fetch(API+'/api/images/'+encodeURIComponent(bf)+'/'+encodeURIComponent(sc));const d=await r.json();
+        if(d.images){const existing=new Set(cart[cartK].images.map(i=>i.path));
+        ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(img=>{
+            if(!existing.has(img.path)){cart[cartK].images.push({path:img.path,filename:img.filename,customName:'',angle:img.angle,type:t,url:img.url});added++;}
+        });});}
+    }catch(e){console.warn('Failed to load images for',sc,e);}
+    // Also add override/S3 image
+    const ovImg=getOverrideImage(sc);
+    if(ovImg){const p='override://'+sc;const existing=new Set(cart[cartK].images.map(i=>i.path));
+        if(!existing.has(p))cart[cartK].images.push({path:p,filename:sc+'_override.jpg',customName:'',angle:'override',type:'override',url:ovImg});}
+}
+saveCart();updateCartBadge();
+gridSelected.clear();renderStyleCards(currentResults);
+btn.disabled=false;btn.textContent='+ Add All to Cart';
+toast(added+' images added to cart');}
 function setFilter(f){currentFilter=f;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter===f));renderStyleCards(currentResults);}
 
 // ── Expanded View with Selection ──
