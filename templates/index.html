@@ -456,29 +456,36 @@ function updateGridToolbar(){const tb=document.getElementById('gridToolbar');con
 if(!tb)return;if(gridSelected.size>0&&!shareMode){tb.style.display='flex';ct.textContent=gridSelected.size;}else{tb.style.display='none';}}
 async function addGridSelectionToCart(){
 if(!gridSelected.size){toast('Select styles first');return;}
-const btn=document.getElementById('gridCartBtn');btn.disabled=true;btn.textContent='⏳ Loading...';
-let added=0;
-for(const key of gridSelected){
-    const[bf,sc]=key.split('::');
-    const brand=photoIndex[bf];
-    const cartK=cartKey(bf,sc);const bn=brand?.info?.full||bf;
-    if(!cart[cartK])cart[cartK]={brandFolder:bf,brandInfo:brand?.info,styleCode:sc,folderName:bn+' - '+sc,images:[]};
-    try{
-        const r=await fetch(API+'/api/images/'+encodeURIComponent(bf)+'/'+encodeURIComponent(sc));const d=await r.json();
-        if(d.images){const existing=new Set(cart[cartK].images.map(i=>i.path));
-        ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(img=>{
-            if(!existing.has(img.path)){cart[cartK].images.push({path:img.path,filename:img.filename,customName:'',angle:img.angle,type:t,url:img.url});added++;}
-        });});}
-    }catch(e){console.warn('Failed to load images for',sc,e);}
-    // Also add override/S3 image
-    const ovImg=getOverrideImage(sc);
-    if(ovImg){const p='override://'+sc;const existing=new Set(cart[cartK].images.map(i=>i.path));
-        if(!existing.has(p))cart[cartK].images.push({path:p,filename:sc+'_override.jpg',customName:'',angle:'override',type:'override',url:ovImg});}
+const btn=document.getElementById('gridCartBtn');btn.disabled=true;btn.textContent='⏳ Loading '+gridSelected.size+' styles...';
+let added=0;const keys=[...gridSelected];
+// Parallel batches of 8 — using ?links=false for speed (no Dropbox API calls)
+const batchSize=8;
+for(let i=0;i<keys.length;i+=batchSize){
+    const batch=keys.slice(i,i+batchSize);
+    btn.textContent='⏳ '+(i+batch.length)+'/'+keys.length+'...';
+    await Promise.all(batch.map(async key=>{
+        const[bf,sc]=key.split('::');
+        const brand=photoIndex[bf];const cartK=cartKey(bf,sc);const bn=brand?.info?.full||bf;
+        if(!cart[cartK])cart[cartK]={brandFolder:bf,brandInfo:brand?.info,styleCode:sc,folderName:bn+' - '+sc,images:[]};
+        try{
+            const r=await fetch(API+'/api/images/'+encodeURIComponent(bf)+'/'+encodeURIComponent(sc)+'?links=false');
+            const d=await r.json();
+            if(d.images){const existing=new Set(cart[cartK].images.map(i=>i.path));
+            ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(img=>{
+                if(!existing.has(img.path)){cart[cartK].images.push({path:img.path,filename:img.filename,customName:'',angle:img.angle,type:t,url:img.url||''});added++;}
+            });});}
+        }catch(e){}
+        const ovImg=getOverrideImage(sc);
+        if(ovImg){const p='override://'+sc;const existing=new Set(cart[cartK].images.map(i=>i.path));
+            if(!existing.has(p))cart[cartK].images.push({path:p,filename:sc+'_override.jpg',customName:'',angle:'override',type:'override',url:ovImg});}
+    }));
 }
 saveCart();updateCartBadge();
-gridSelected.clear();renderStyleCards(currentResults);
+gridSelected.clear();selectMode=false;document.getElementById('stylesGrid').classList.remove('select-mode');
+document.getElementById('selectModeBtn').textContent='☑ Select';document.getElementById('selectModeBtn').style.background='';document.getElementById('selectModeBtn').style.color='';document.getElementById('selectModeBtn').style.borderColor='';
+renderStyleCards(currentResults);
 btn.disabled=false;btn.textContent='+ Add All to Cart';
-toast(added+' images added to cart');}
+toast(added+' images from '+keys.length+' styles added to cart');}
 function setFilter(f){currentFilter=f;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter===f));renderStyleCards(currentResults);}
 
 // ── Expanded View with Selection ──
@@ -583,7 +590,7 @@ body.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||it
 return'<div class="cart-item">'+
 '<div class="cart-item-header"><div><div class="cart-item-title">'+esc(item.styleCode)+'</div><div class="cart-item-brand">'+esc(bn)+'</div></div><button class="cart-item-remove" onclick="removeFromCart(\''+ek+'\')">✕</button></div>'+
 '<div style="margin:8px 0"><label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Folder Name</label><input type="text" value="'+esc(item.folderName||'')+'" onchange="updateFolderName(\''+ek+'\',this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-size:12px;font-family:inherit;outline:none;margin-top:2px"></div>'+
-'<div class="cart-item-images">'+item.images.slice(0,6).map(img=>'<img class="cart-thumb" src="'+esc(img.url)+'" alt="'+esc(img.filename)+'">').join('')+
+'<div class="cart-item-images">'+item.images.slice(0,6).map(img=>{const thumbUrl=img.url||S3O+'/'+item.styleCode+'.jpg';return'<img class="cart-thumb" src="'+esc(thumbUrl)+'" alt="'+esc(img.filename)+'" onerror="this.style.opacity=0.3">';}).join('')+
 (item.images.length>6?'<span style="color:rgba(255,255,255,0.4);font-size:11px;display:flex;align-items:center">+'+( item.images.length-6)+' more</span>':'')+
 '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="cart-item-count">'+item.images.length+' image(s)</div><button onclick="toggleCartExpand(\''+ek+'\')" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Rename files ▾</button></div>'+
 '<div id="cartfiles_'+sid+'" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto">'+item.images.map((img,idx)=>{
