@@ -94,9 +94,9 @@ BRAND_LOGOS = {
 # ─── State ────────────────────────────────────────────────────────────────────
 photo_index = {}
 scan_status = {
-    'scanning': False,
+    'scanning': True,   # Start True so frontend polls on cold start
     'last_scan': None,
-    'progress': '',
+    'progress': 'Starting up...',
     'brands': 0,
     'styles': 0,
     'images': 0,
@@ -225,14 +225,12 @@ def parse_image_entry(path_lower, path_display):
     
     # Normalize style code: ensure underscore separator
     style_code = style_code.replace('-', '_').upper()
-    # Ensure consistent format: PREFIX_PADDED_NUMBER (pad to 3 digits like inventory index)
-    sc_match = re.match(r'^([A-Z]{2})_(\d+(?:_\d+)?)$', style_code)
+    # Extract ONLY prefix + first number group, pad to 3 digits
+    # NA_201_10 → NA_201, BE_22_140 → BE_022, NA_207_4 → NA_207
+    sc_match = re.match(r'^([A-Z]{2})[_](\d+)', style_code)
     if sc_match:
         prefix = sc_match.group(1)
-        num_part = sc_match.group(2)
-        # Only pad simple numbers (not compound like 470_001)
-        if '_' not in num_part:
-            num_part = num_part.zfill(3)  # pad to 3 digits: 1→001, 22→022, 140→140
+        num_part = sc_match.group(2).zfill(3)
         style_code = f"{prefix}_{num_part}"
     
     # Determine angle from filename
@@ -494,6 +492,81 @@ def load_inventory_styles():
     
     except Exception as e:
         log.warning(f'Failed to fetch inventory styles: {e}')
+    
+    # Also fetch all image codes from the Dropbox-synced PHOTOS INVENTORY
+    _load_dropbox_photo_codes()
+
+
+# Reverse lookup: image prefix → brand abbr
+PREFIX_TO_BRAND = {v: k for k, v in BRAND_IMAGE_PREFIX.items()}
+
+def _load_dropbox_photo_codes():
+    """Fetch image codes from inventory API's /dropbox-photos endpoint.
+    
+    These are all styles that have regular product photos in:
+    Versa Share Files / PHOTOS INVENTORY (synced to S3).
+    """
+    global photo_index
+    try:
+        log.info(f'Fetching dropbox photo codes from {INVENTORY_API_URL}/dropbox-photos ...')
+        req = urllib.request.Request(
+            f'{INVENTORY_API_URL}/dropbox-photos',
+            headers={'User-Agent': 'VersaPhotoStudio/1.0'}
+        )
+        resp = urllib.request.urlopen(req, timeout=15)
+        data = json.loads(resp.read())
+        
+        codes = data.get('codes', [])
+        if not codes:
+            log.info('No dropbox photo codes returned')
+            return
+        
+        added = 0
+        for code in codes:
+            # Code format: "NA_001", "US_130", "BE_074"
+            code = code.upper().strip()
+            parts = code.split('_', 1)
+            if len(parts) != 2:
+                continue
+            
+            img_prefix, num = parts[0], parts[1]
+            brand_abbr = PREFIX_TO_BRAND.get(img_prefix)
+            if not brand_abbr:
+                continue
+            
+            # Normalize: pad number to 3 digits
+            style_code = f"{img_prefix}_{num.zfill(3)}"
+            
+            # Find matching brand folder
+            brand_folder = None
+            for folder, bdata in photo_index.items():
+                if bdata['info'].get('abbr', '').upper() == brand_abbr.upper():
+                    brand_folder = folder
+                    break
+            
+            if not brand_folder:
+                # Create brand entry
+                brand_folder = brand_abbr
+                photo_index[brand_folder] = {
+                    'info': {
+                        'abbr': brand_abbr,
+                        'prefix': img_prefix,
+                        'full': brand_abbr,
+                    },
+                    'styles': {},
+                }
+            
+            if style_code not in photo_index[brand_folder]['styles']:
+                photo_index[brand_folder]['styles'][style_code] = {
+                    'ghost': [], 'model': [], 'other': []
+                }
+                added += 1
+        
+        log.info(f'Added {added} styles from dropbox photo codes '
+                 f'(total styles now: {sum(len(b["styles"]) for b in photo_index.values())})')
+    
+    except Exception as e:
+        log.warning(f'Failed to fetch dropbox photo codes: {e}')
 
 
 # ─── Temp Link Generation ────────────────────────────────────────────────────
@@ -935,12 +1008,15 @@ def serve_share():
 # ─── Startup ──────────────────────────────────────────────────────────────────
 def startup_scan():
     """Auto-scan on startup after a short delay."""
-    time.sleep(3)
+    time.sleep(1)
     if DROPBOX_ACCESS_TOKEN or DROPBOX_REFRESH_TOKEN:
         log.info('Starting initial Dropbox scan...')
         scan_dropbox()  # This already calls load_inventory_styles() on completion
     else:
         log.warning('No Dropbox credentials — skipping auto-scan.')
+        with scan_lock:
+            scan_status['scanning'] = False
+            scan_status['progress'] = 'No credentials configured'
 
 # Start background scan on startup
 threading.Thread(target=startup_scan, daemon=True).start()
