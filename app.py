@@ -390,14 +390,19 @@ def scan_dropbox():
         
         log.info(f'Scan complete: {len(new_index)} brands, {len(total_styles)} styles, {total_images} images')
         
-        # Merge inventory styles so all catalog styles appear (not just Dropbox ones)
-        load_inventory_styles()
+        # Merge inventory styles (in its own try/catch so it can't crash the scan)
+        try:
+            scan_status['progress'] = 'Merging inventory styles...'
+            load_inventory_styles()
+        except Exception as e:
+            log.warning(f'Inventory merge failed (non-fatal): {e}')
         
         # Update counts after merge
         with scan_lock:
             scan_status['brands'] = len(photo_index)
             scan_status['styles'] = sum(len(b['styles']) for b in photo_index.values())
-            scan_status['images'] = total_images  # Dropbox images only for this count
+            scan_status['images'] = total_images
+            scan_status['progress'] = 'Complete'
         
     except Exception as e:
         log.error(f'Scan error: {e}', exc_info=True)
@@ -599,29 +604,23 @@ def get_temp_link(dbx_path):
         if now < expiry:
             return url
     
-    try:
-        dbx = get_dbx_cached()
-        result = dbx.files_get_temporary_link(dbx_path)
-        url = result.link
-        link_cache[dbx_path] = (url, now + LINK_TTL)
-        return url
-    except ApiError as e:
-        if 'expired_access_token' in str(e):
-            reset_dbx_client()
-            try:
-                dbx = get_dbx_cached()
-                result = dbx.files_get_temporary_link(dbx_path)
-                url = result.link
-                link_cache[dbx_path] = (url, now + LINK_TTL)
-                return url
-            except Exception as e2:
-                log.error(f'Failed to get temp link (retry) for {dbx_path}: {e2}')
-                return None
-        log.error(f'Failed to get temp link for {dbx_path}: {e}')
-        return None
-    except Exception as e:
-        log.error(f'Failed to get temp link for {dbx_path}: {e}')
-        return None
+    # Try with cached client first, retry with fresh client on any auth/connection error
+    for attempt in range(2):
+        try:
+            dbx = get_dbx_cached()
+            result = dbx.files_get_temporary_link(dbx_path)
+            url = result.link
+            link_cache[dbx_path] = (url, now + LINK_TTL)
+            return url
+        except (ApiError, Exception) as e:
+            err_str = str(e).lower()
+            if attempt == 0 and ('expired' in err_str or 'auth' in err_str or 'token' in err_str or 'invalid' in err_str or isinstance(e, ConnectionError)):
+                log.warning(f'Dropbox auth/connection error, refreshing client: {e}')
+                reset_dbx_client()
+                continue
+            log.error(f'Failed to get temp link for {dbx_path}: {e}')
+            return None
+    return None
 
 
 def get_temp_links_batch(paths):
@@ -1066,17 +1065,62 @@ def startup_scan():
     time.sleep(1)
     if DROPBOX_ACCESS_TOKEN or DROPBOX_REFRESH_TOKEN:
         log.info('Starting initial Dropbox scan...')
-        # Reset the startup scanning flag so scan_dropbox doesn't skip
-        scan_status['scanning'] = False
-        scan_dropbox()  # This already calls load_inventory_styles() on completion
+        try:
+            # Reset the startup scanning flag so scan_dropbox doesn't skip
+            scan_status['scanning'] = False
+            scan_dropbox()
+        except Exception as e:
+            log.error(f'Startup scan crashed: {e}', exc_info=True)
+            with scan_lock:
+                scan_status['scanning'] = False
+                scan_status['error'] = str(e)
+                scan_status['progress'] = f'Startup error: {e}'
     else:
         log.warning('No Dropbox credentials — skipping auto-scan.')
         with scan_lock:
             scan_status['scanning'] = False
             scan_status['progress'] = 'No credentials configured'
 
-# Start background scan on startup
-threading.Thread(target=startup_scan, daemon=True).start()
+# ─── Self-Healing Startup & Recovery ─────────────────────────────────────────
+_startup_done = False
+_last_auto_rescan = 0
+_last_cache_clean = 0
+AUTO_RESCAN_INTERVAL = 4 * 3600  # Re-scan every 4 hours to refresh Dropbox tokens
+CACHE_CLEAN_INTERVAL = 1800      # Clean stale link cache every 30 min
+
+@app.before_request
+def ensure_index():
+    """Self-healing: auto-scan on first request, and recover if index is lost."""
+    global _startup_done, _last_auto_rescan, _last_cache_clean
+    now = time.time()
+    
+    if not _startup_done:
+        _startup_done = True
+        _last_auto_rescan = now
+        threading.Thread(target=startup_scan, daemon=True).start()
+        return
+    
+    # Auto-recovery: if index is empty and no scan running, trigger rescan
+    if not photo_index and not _scan_running and not scan_status.get('scanning'):
+        log.warning('Photo index is empty — triggering auto-recovery scan')
+        _last_auto_rescan = now
+        threading.Thread(target=startup_scan, daemon=True).start()
+        return
+    
+    # Periodic refresh: re-scan every 4 hours to keep Dropbox tokens fresh
+    if photo_index and not _scan_running and (now - _last_auto_rescan) > AUTO_RESCAN_INTERVAL:
+        log.info('Periodic rescan triggered (keeping Dropbox tokens fresh)')
+        _last_auto_rescan = now
+        threading.Thread(target=startup_scan, daemon=True).start()
+    
+    # Periodic link cache cleanup — evict expired entries
+    if (now - _last_cache_clean) > CACHE_CLEAN_INTERVAL:
+        _last_cache_clean = now
+        stale = [k for k, (_, exp) in link_cache.items() if now > exp]
+        for k in stale:
+            del link_cache[k]
+        if stale:
+            log.info(f'Cleaned {len(stale)} stale link cache entries')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
