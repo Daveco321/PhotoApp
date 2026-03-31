@@ -541,6 +541,39 @@ def api_links():
     return jsonify({'links': links})
 
 
+def parse_versa_sku(term):
+    """Try to parse a full Versa SKU into a style code.
+    
+    SKU format: [0:2]=customer, [2:4]=brand, [4:6]=fabric, [6:9]=style#, [9:11]=fit, [11:12]=collar
+    Example: AMNASU201SLS → brand=NA, style=201 → NA_201
+             WLBE001SLBD → brand=BE, style=001 → BE_001
+    
+    Also handles SKUs with size suffix: AMNASU201SLS-1534 → NA_201
+    """
+    # Strip size suffix
+    base = term.split('-')[0].strip().upper()
+    
+    # Must be at least 9 chars (2 customer + 2 brand + 2 fabric + 3 style)
+    # Full SKU is 12 chars but some may be truncated
+    if len(base) < 9:
+        return None
+    
+    # Check if it looks like a SKU (letters + digits pattern)
+    # Positions 6-8 must be digits (style number)
+    if not base[6:9].isdigit():
+        return None
+    
+    # Positions 2-3 must be a known brand prefix
+    brand_prefix = base[2:4]
+    known_prefixes = {'NA', 'DK', 'EB', 'RB', 'VC', 'BE', 'US', 'CH', 'LB', 
+                      'JN', 'GB', 'NM', 'SH', 'TA', 'MS', 'VD', 'KL', 'CK', 'NW'}
+    if brand_prefix not in known_prefixes:
+        return None
+    
+    style_num = base[6:9]
+    return f"{brand_prefix}_{style_num}"
+
+
 @app.route('/api/search')
 def api_search():
     """Search the photo index. Returns matching styles with their brand info.
@@ -551,6 +584,7 @@ def api_search():
       - "NA_201" or "NA 201" → specific style
       - "NA_201, BE_001" → multiple styles
       - "201, 205, 340" → multiple numbers across all brands
+      - "AMNASU201SLS" → full Versa SKU → NA_201
     """
     q = request.args.get('q', '').strip()
     if not q:
@@ -558,10 +592,20 @@ def api_search():
     
     results = []
     
-    # Split by comma for multi-style queries
-    terms = [t.strip().upper() for t in q.split(',') if t.strip()]
+    # Split by comma, newline, tab, or multiple spaces for multi-style queries
+    raw_terms = re.split(r'[,\n\t]+|\s{2,}', q)
+    terms = [t.strip().upper() for t in raw_terms if t.strip()]
     
+    # Pre-process: convert full Versa SKUs to style codes
+    processed_terms = []
     for term in terms:
+        converted = parse_versa_sku(term)
+        if converted:
+            processed_terms.append(converted)
+        else:
+            processed_terms.append(term)
+    
+    for term in processed_terms:
         # Normalize: replace spaces with underscores for style matching
         term_norm = term.replace(' ', '_').replace('-', '_')
         
