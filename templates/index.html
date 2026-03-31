@@ -223,6 +223,8 @@ const S3O='https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photo
 const S3I='https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/PHOTOS+INVENTORY';
 const S3M={'EB':'EDDIE+BAUER','USPA':'US+POLO','VINCE':'VINCE+CAMUTO','LUCKY':'LUCKY+BRAND','BEN':'BEN+SHERMAN','BEENE':'GEOFFREY+BEENE','NICOLE':'NICOLE+MILLER','TAYION':'TAYON','VD':'Von+Dutch','KL':'KARL+LAGERFELD'};
 const PREFIXES=new Set(['NA','DK','EB','RB','VC','BE','US','CH','LB','JN','GB','NM','SH','TA','MS','VD','KL','CK','NW']);
+const BRAND_ORDER=['NAUTICA','DKNY','EB','VINCE','KL','CHAPS','USPA','LUCKY','BEN','BEENE','NE','JNY','NICOLE','VD','REEBOK','SHAQ','TAYION','STRAHAN','VERSA','AMERICA','BLO','DN'];
+function brandSortKey(abbr){const idx=BRAND_ORDER.indexOf(abbr);return idx>=0?idx:999;}
 let photoIndex={},currentFilter='all',currentResults=[],lightboxImages=[],lightboxIdx=0,searchTimeout=null,pollInterval=null;
 let cart={};// key="brand::style" → {brandFolder,brandInfo,styleCode,images:[{path,filename,angle,type,url}]}
 let expandedImgs=[];// current expanded view images [{path,filename,angle,type,url,selected}]
@@ -261,7 +263,7 @@ async function triggerScan(){document.getElementById('scanBtn').classList.add('s
 function showLoading(t){document.getElementById('loadingState').style.display='';document.getElementById('loadingText').textContent=t;['brandsSection','resultsSection','emptyState'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('statsBar').style.display='none';}
 function updateStatus(s){const p=document.getElementById('statusPill'),b=document.getElementById('scanBtn');b.classList.remove('scanning');if(s==='ready'){p.className='status-pill ready';p.textContent=Object.values(photoIndex).reduce((a,b)=>a+b.style_count,0)+' styles';}else if(s==='scanning'){p.className='status-pill';p.textContent='Scanning...';b.classList.add('scanning');}else{p.className='status-pill';p.textContent='No data';}}
 function renderHome(){document.getElementById('loadingState').style.display='none';document.getElementById('brandsSection').style.display='';document.getElementById('resultsSection').style.display='none';document.getElementById('emptyState').style.display='none';document.getElementById('convertedNotice').style.display='none';
-const brands=Object.entries(photoIndex).sort((a,b)=>(a[1].info?.full||a[0]).localeCompare(b[1].info?.full||b[0]));let ts=0,ti=0;brands.forEach(([,b])=>{ts+=b.style_count;ti+=b.image_count;});
+const brands=Object.entries(photoIndex).sort((a,b)=>{const ia=brandSortKey(a[1].info?.abbr||''),ib=brandSortKey(b[1].info?.abbr||'');if(ia!==ib)return ia-ib;return(a[1].info?.full||a[0]).localeCompare(b[1].info?.full||b[0]);});let ts=0,ti=0;brands.forEach(([,b])=>{ts+=b.style_count;ti+=b.image_count;});
 document.getElementById('statsBar').style.display='flex';document.getElementById('statBrands').textContent=brands.length;document.getElementById('statStyles').textContent=ts;document.getElementById('statImages').textContent=ti.toLocaleString();document.getElementById('brandCountLabel').textContent='('+brands.length+')';
 document.getElementById('brandsGrid').innerHTML=brands.map(([f,b])=>{const l=b.logo,n=b.info?.full||f;return'<div class="brand-card" onclick="searchBrand(\''+esc(f)+'\')">'+
 (l?'<img class="brand-logo" src="'+esc(l)+'" alt="'+esc(n)+'" onerror="this.style.display=\'none\'">':'')+
@@ -285,6 +287,7 @@ else if(shareMode){bb.style.display='none';document.getElementById('resultsTitle
 else{bb.style.display='none';document.getElementById('resultsTitle').textContent='Results for "'+q+'"';document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'')+' found';}
 renderStyleCards(currentResults);}
 function renderStyleCards(results){const g=document.getElementById('stylesGrid');let f=results;if(currentFilter==='ghost')f=results.filter(r=>r.ghost_count>0);else if(currentFilter==='model')f=results.filter(r=>r.model_count>0);else if(currentFilter==='both')f=results.filter(r=>r.ghost_count>0&&r.model_count>0);
+document.getElementById('resultsCount').textContent=f.length+' style'+(f.length!==1?'s':'')+' shown'+(f.length!==results.length?' (of '+results.length+')':'');
 g.innerHTML=f.map(r=>{const bn=r.brand_info?.full||r.brand_folder,ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;
 const tu=S3O+'/'+r.style_code+'.jpg',fu=S3I+'/'+sf+'/'+r.style_code+'.jpg';
 const bd=[];if(r.ghost_count>0)bd.push('<span class="type-badge ghost">Ghost</span>');if(r.model_count>0)bd.push('<span class="type-badge model">Model</span>');
