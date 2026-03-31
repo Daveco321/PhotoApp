@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Versa Photo Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--gradient:linear-gradient(135deg,#667eea 0%,#764ba2 100%);--purple:#667eea;--violet:#764ba2;--glass:rgba(255,255,255,0.95);--text-dark:#1f2937;--text-light:#6b7280;--text-muted:#9ca3af;--ghost-color:#667eea;--model-color:#e44d8a;--success:#10b981;--radius:16px}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -48,7 +49,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .brand-logo{width:auto;max-width:80%;height:60px;object-fit:contain;margin-bottom:4px}
 .brand-card-name{font-weight:700;font-size:16px}.brand-card-stats{font-size:12px;color:var(--text-light)}
 .brand-card-stats b{color:var(--purple)}
-.back-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.back-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;position:sticky;top:72px;z-index:50;background:linear-gradient(135deg,rgba(102,126,234,0.95),rgba(118,75,162,0.95));backdrop-filter:blur(12px);padding:12px 16px;margin-left:-16px;margin-right:-16px;border-radius:12px}
 .back-btn{background:var(--glass);border:2px solid #e5e7eb;color:var(--text-dark);padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:6px}
 .back-btn:hover{border-color:var(--purple);box-shadow:0 4px 12px rgba(102,126,234,0.2)}
 .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
@@ -72,6 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .type-badge.model{background:rgba(228,77,138,0.15);color:var(--model-color)}
 .style-card-info{padding:12px 14px 14px}
 .style-card-code{font-size:14px;font-weight:700}.style-card-meta{font-size:11px;color:var(--text-light);margin-top:3px}
+.style-card-color{font-size:11px;color:#7c3aed;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Expanded */
 .style-expanded{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(16px);z-index:500;overflow-y:auto;display:none}
 .style-expanded.open{display:block}
@@ -226,10 +228,66 @@ const PREFIXES=new Set(['NA','DK','EB','RB','VC','BE','US','CH','LB','JN','GB','
 const BRAND_ORDER=['NAUTICA','DKNY','EB','VINCE','KL','CHAPS','USPA','LUCKY','BEN','BEENE','NE','JNY','NICOLE','VD','REEBOK','SHAQ','TAYION','STRAHAN','VERSA','AMERICA','BLO','DN'];
 function brandSortKey(abbr){const idx=BRAND_ORDER.indexOf(abbr);return idx>=0?idx:999;}
 let photoIndex={},currentFilter='all',currentResults=[],lightboxImages=[],lightboxIdx=0,searchTimeout=null,pollInterval=null;
-let cart={};// key="brand::style" → {brandFolder,brandInfo,styleCode,images:[{path,filename,angle,type,url}]}
-let expandedImgs=[];// current expanded view images [{path,filename,angle,type,url,selected}]
+let cart={};// key="brand::style" → {brandFolder,brandInfo,styleCode,folderName,images:[{path,filename,customName,angle,type,url}]}
+let expandedImgs=[];
 let currentExpBrand='',currentExpStyle='',currentExpBrandInfo=null;
 let shareMode=false,shareStyles=[];
+const styleColorMap={};// style_code → [color1, color2, ...]
+const overrideMap={};// style_code → {color, image, fabrication, fit}
+const INVENTORY_API='https://versa-inventory-api.onrender.com';
+
+async function loadColorMap(){
+try{
+const url='https://nauticaslimfit.s3.us-east-2.amazonaws.com/Inventory+Colors+Data/style_color_map.xlsx?v='+Math.floor(Date.now()/(1000*3600));
+const resp=await fetch(url);if(!resp.ok)return;
+const data=await resp.arrayBuffer();
+const wb=XLSX.read(data,{type:'array'});
+const sheet=wb.Sheets['Color Map']||wb.Sheets[wb.SheetNames[0]];
+const rows=XLSX.utils.sheet_to_json(sheet);
+rows.forEach(row=>{
+const key=(row.Key||row.Style_Number||'').toString().trim().toUpperCase();
+const color=(row.Color_Description||'').toString().trim();
+if(!key||!color)return;
+const sc=parseSku(key);
+const styleKey=sc||key;
+if(!styleColorMap[styleKey])styleColorMap[styleKey]=[];
+if(!styleColorMap[styleKey].includes(color))styleColorMap[styleKey].push(color);
+});
+console.log('[Color Map] Loaded',Object.keys(styleColorMap).length,'styles');
+}catch(e){console.warn('[Color Map] Failed:',e);}
+}
+
+async function loadOverrides(){
+try{
+const resp=await fetch(INVENTORY_API+'/overrides');if(!resp.ok)return;
+const data=await resp.json();
+let imgCount=0;
+for(const[sku,ov] of Object.entries(data)){
+const sc=parseSku(sku);if(!sc)continue;
+if(!overrideMap[sc])overrideMap[sc]={colors:[],images:[],fabrication:'',fit:''};
+if(ov.color&&!overrideMap[sc].colors.includes(ov.color))overrideMap[sc].colors.push(ov.color);
+if(ov.image&&ov.image.startsWith('data:')&&!overrideMap[sc].images.length){overrideMap[sc].images.push(ov.image);imgCount++;}
+if(ov.fabrication&&!overrideMap[sc].fabrication)overrideMap[sc].fabrication=ov.fabrication;
+if(ov.fit&&!overrideMap[sc].fit)overrideMap[sc].fit=ov.fit;
+}
+console.log('[Overrides] Loaded',Object.keys(overrideMap).length,'styles,',imgCount,'images');
+}catch(e){console.warn('[Overrides] Failed:',e);}
+}
+
+function getStyleColors(sc){
+// Priority: override colors → color map
+const ov=overrideMap[sc];
+if(ov&&ov.colors.length)return ov.colors;
+return styleColorMap[sc]||[];
+}
+function getOverrideImage(sc){
+const ov=overrideMap[sc];
+return(ov&&ov.images.length)?ov.images[0]:null;
+}
+function getStyleMeta(sc){
+const ov=overrideMap[sc];
+return ov?{fabrication:ov.fabrication||'',fit:ov.fit||''}:{fabrication:'',fit:''};
+}
 
 function parseSku(t){const b=t.split('-')[0].trim().toUpperCase();if(b.length<9||!/^\d{3}$/.test(b.substring(6,9)))return null;const p=b.substring(2,4);if(!PREFIXES.has(p))return null;return p+'_'+b.substring(6,9);}
 function formatPaste(raw){const parts=raw.split(/[,\n\t]+|\s{2,}/).map(s=>s.trim()).filter(Boolean);let did=false;const out=parts.map(p=>{const s=parseSku(p);if(s){did=true;return s;}return p.toUpperCase();});const n=document.getElementById('convertedNotice');if(did){n.textContent='✓ SKUs converted to style codes';n.style.display='';}else n.style.display='none';setTimeout(()=>n.style.display='none',3000);return out.join(', ');}
@@ -239,6 +297,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     const sh=params.get('share')||params.get('s');
     if(sh){shareMode=true;shareStyles=sh.split(',').map(s=>s.trim()).filter(Boolean);document.getElementById('searchArea').style.display='none';}
     loadIndex();
+    loadColorMap();
+    loadOverrides();
     const inp=document.getElementById('searchInput');
     inp.addEventListener('input',onSearchInput);
     inp.addEventListener('paste',e=>{e.preventDefault();const p=(e.clipboardData||window.clipboardData).getData('text');const f=formatPaste(p);inp.value=f;if(f.trim())executeSearch(f);else renderHome();});
@@ -315,9 +375,13 @@ renderStyleCards(currentResults);}
 function renderStyleCards(results){const g=document.getElementById('stylesGrid');let f=results;if(currentFilter==='ghost')f=results.filter(r=>r.ghost_count>0);else if(currentFilter==='model')f=results.filter(r=>r.model_count>0);else if(currentFilter==='both')f=results.filter(r=>r.ghost_count>0&&r.model_count>0);
 document.getElementById('resultsCount').textContent=f.length+' style'+(f.length!==1?'s':'')+' shown'+(f.length!==results.length?' (of '+results.length+')':'');
 g.innerHTML=f.map(r=>{const bn=r.brand_info?.full||r.brand_folder,ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;
-const tu=S3O+'/'+r.style_code+'.jpg',fu=S3I+'/'+sf+'/'+r.style_code+'.jpg';
+const ovImg=getOverrideImage(r.style_code);
+const tu=ovImg||S3O+'/'+r.style_code+'.jpg',fu=S3I+'/'+sf+'/'+r.style_code+'.jpg';
 const bd=[];if(r.ghost_count>0)bd.push('<span class="type-badge ghost">Ghost</span>');if(r.model_count>0)bd.push('<span class="type-badge model">Model</span>');
-return'<div class="style-card" onclick="openStyle(\''+esc(r.brand_folder)+'\',\''+esc(r.style_code)+'\')"><div class="style-card-thumb"><img src="'+esc(tu)+'" onerror="this.onerror=function(){this.style.display=\'none\';this.parentElement.innerHTML+=\'<div class=placeholder>'+esc(r.style_code)+'</div>\'};this.src=\''+esc(fu)+'\'" alt="'+esc(r.style_code)+'" loading="lazy"><span class="brand-tag">'+esc(bn)+'</span><div class="type-badges">'+bd.join('')+'</div></div><div class="style-card-info"><div class="style-card-code">'+esc(r.style_code)+'</div><div class="style-card-meta">'+r.ghost_count+' ghost · '+r.model_count+' model</div></div></div>';}).join('');}
+const colors=getStyleColors(r.style_code);const colorText=colors.length?colors.slice(0,2).join(', ')+(colors.length>2?' +'+(colors.length-2):''):'';
+const meta=getStyleMeta(r.style_code);const metaParts=[];if(meta.fit)metaParts.push(meta.fit);metaParts.push(r.ghost_count+' ghost · '+r.model_count+' model');
+const imgTag=ovImg?'<img src="'+esc(tu)+'" alt="'+esc(r.style_code)+'" loading="lazy">':'<img src="'+esc(tu)+'" onerror="this.onerror=function(){this.style.display=\'none\';this.parentElement.innerHTML+=\'<div class=placeholder>'+esc(r.style_code)+'</div>\'};this.src=\''+esc(fu)+'\'" alt="'+esc(r.style_code)+'" loading="lazy">';
+return'<div class="style-card" onclick="openStyle(\''+esc(r.brand_folder)+'\',\''+esc(r.style_code)+'\')"><div class="style-card-thumb">'+imgTag+'<span class="brand-tag">'+esc(bn)+'</span><div class="type-badges">'+bd.join('')+'</div></div><div class="style-card-info"><div class="style-card-code">'+esc(r.style_code)+'</div>'+(colorText?'<div class="style-card-color">'+esc(colorText)+'</div>':'')+'<div class="style-card-meta">'+esc(metaParts.join(' · '))+'</div></div></div>';}).join('');}
 function setFilter(f){currentFilter=f;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter===f));renderStyleCards(currentResults);}
 
 // ── Expanded View with Selection ──
@@ -326,7 +390,13 @@ async function openStyle(bf,sc){
     const v=document.getElementById('expandedView'),c=document.getElementById('expandedContent');
     const brand=photoIndex[bf];currentExpBrand=bf;currentExpStyle=sc;currentExpBrandInfo=brand;
     document.getElementById('expandedTitle').innerHTML='<span>'+esc(sc)+'</span>';
-    document.getElementById('expandedBrand').textContent=brand?.info?.full||bf;
+    const expColors=getStyleColors(sc);
+    const expMeta=getStyleMeta(sc);
+    let subtitle=brand?.info?.full||bf;
+    if(expColors.length)subtitle+=' · '+expColors.join(', ');
+    if(expMeta.fit)subtitle+=' · '+expMeta.fit;
+    if(expMeta.fabrication)subtitle+=' · '+expMeta.fabrication;
+    document.getElementById('expandedBrand').textContent=subtitle;
     c.innerHTML='<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading images...</div></div>';
     document.getElementById('expandedActions').innerHTML='';
     v.classList.add('open');document.body.style.overflow='hidden';expandedImgs=[];
@@ -349,11 +419,22 @@ async function openStyle(bf,sc){
         if(!expandedImgs.length)html='<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">No professional photos found.</div></div>'+html;
         c.innerHTML=html;
         document.getElementById('expandedActions').innerHTML='<button class="exp-btn secondary" onclick="selectAllExpanded()">☑ Select All</button><button class="exp-btn primary" onclick="addSelectedToCart()">+ Add to Cart</button>';
-        // Probe S3 inventory image
+        // Probe override + S3 inventory images
         const abbr=brand?.info?.abbr||'',s3f=S3M[abbr]||abbr;
-        const invUrls=[S3O+'/'+sc+'.jpg',S3I+'/'+s3f+'/'+sc+'.jpg'];
+        const ovImg=getOverrideImage(sc);
+        const invUrls=[];
+        if(ovImg)invUrls.push(ovImg);
+        invUrls.push(S3O+'/'+sc+'.jpg',S3I+'/'+s3f+'/'+sc+'.jpg');
         const invC=document.getElementById('inventoryImages');
         for(const url of invUrls){
+            if(url.startsWith('data:')){
+                // Base64 override — always valid
+                const idx=lightboxImages.length;lightboxImages.push({url,label:'Override',filename:sc+'_override.jpg'});
+                invC.innerHTML='<div class="exp-img-card" onclick="openLightbox('+idx+')"><img src="'+esc(url)+'" alt="Override"><div class="exp-img-label"><span>Override</span></div></div>';
+                document.getElementById('inventorySection').style.display='';
+                document.getElementById('inventorySection').querySelector('.expanded-section-title').innerHTML='<div class="dot"></div>Platform Override Image';
+                break;
+            }
             const ok=await new Promise(res=>{const im=new Image();im.onload=()=>res(im.naturalWidth>1);im.onerror=()=>res(false);im.src=url;});
             if(ok){const idx=lightboxImages.length;lightboxImages.push({url,label:'Inventory',filename:sc+'.jpg'});
                 invC.innerHTML='<div class="exp-img-card" onclick="openLightbox('+idx+')"><img src="'+esc(url)+'" alt="Inventory"><div class="exp-img-label"><span>Standard</span></div></div>';
