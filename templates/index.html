@@ -39,12 +39,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .main{padding:0 32px 60px;max-width:1500px;margin:0 auto}
 .section-title{font-size:16px;font-weight:700;color:white;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .section-title .count{font-size:12px;color:rgba(255,255,255,0.5);font-weight:400}
-.brands-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:32px}
-.brand-card{background:var(--glass);border:1px solid transparent;border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.brands-grid{display:grid;grid-template-columns:repeat(1,1fr);gap:16px;margin-bottom:32px}
+@media(min-width:640px){.brands-grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.brands-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1280px){.brands-grid{grid-template-columns:repeat(4,1fr)}}
+.brand-card{background:var(--glass);border:2px solid transparent;border-radius:var(--radius);padding:28px 20px;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
 .brand-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(102,126,234,0.25);border-color:var(--purple)}
-.brand-logo{width:100%;height:45px;object-fit:contain}
-.brand-card-name{font-weight:700;font-size:13px}.brand-card-stats{font-size:11px;color:var(--text-light)}
+.brand-logo{width:auto;max-width:80%;height:60px;object-fit:contain;margin-bottom:4px}
+.brand-card-name{font-weight:700;font-size:16px}.brand-card-stats{font-size:12px;color:var(--text-light)}
 .brand-card-stats b{color:var(--purple)}
+.back-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.back-btn{background:var(--glass);border:2px solid #e5e7eb;color:var(--text-dark);padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:6px}
+.back-btn:hover{border-color:var(--purple);box-shadow:0 4px 12px rgba(102,126,234,0.2)}
 .results-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
 .results-title{font-size:16px;font-weight:700;color:white}
 .results-count{font-size:12px;color:rgba(255,255,255,0.5);margin-top:2px}
@@ -96,6 +102,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .exp-img-label{padding:8px 10px;font-size:11px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;display:flex;justify-content:space-between;align-items:center}
 .exp-img-check{width:18px;height:18px;border-radius:4px;border:2px solid #d1d5db;background:white;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all 0.15s;flex-shrink:0}
 .exp-img-check.checked{background:var(--success);border-color:var(--success);color:white}
+.cart-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:550;display:none}
+.cart-overlay.open{display:block}
 /* Cart Panel */
 .cart-panel{position:fixed;top:0;right:0;bottom:0;width:400px;max-width:90vw;background:rgba(15,15,20,0.97);backdrop-filter:blur(20px);z-index:600;transform:translateX(100%);transition:transform 0.3s ease;display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.1)}
 .cart-panel.open{transform:translateX(0)}
@@ -174,8 +182,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div id="shareBanner" style="display:none"></div>
     <div id="brandsSection" style="display:none"><div class="section-title">Brands <span class="count" id="brandCountLabel"></span></div><div class="brands-grid" id="brandsGrid"></div></div>
     <div id="resultsSection" style="display:none">
+        <div class="back-bar" id="backBar" style="display:none"><button class="back-btn" onclick="goHome()">← Back</button><span id="backBrandName" style="color:white;font-weight:700;font-size:18px"></span></div>
         <div class="results-header"><div><div class="results-title" id="resultsTitle">Results</div><div class="results-count" id="resultsCount"></div></div>
-            <div class="filter-tabs"><button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All</button><button class="filter-tab" data-filter="ghost" onclick="setFilter('ghost')">Ghost</button><button class="filter-tab" data-filter="model" onclick="setFilter('model')">Model</button></div>
+            <div class="filter-tabs"><button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All</button><button class="filter-tab" data-filter="ghost" onclick="setFilter('ghost')">Ghost</button><button class="filter-tab" data-filter="model" onclick="setFilter('model')">Model</button><button class="filter-tab" data-filter="both" onclick="setFilter('both')">Ghost & Model</button></div>
         </div>
         <div class="styles-grid" id="stylesGrid"></div>
     </div>
@@ -191,8 +200,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     </div>
     <div id="expandedContent"></div>
 </div></div>
+<div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
 <div class="cart-panel" id="cartPanel">
-    <div class="cart-header"><div class="cart-title">🛒 Cart</div><button class="cart-clear" onclick="clearCart()">Clear All</button></div>
+    <div class="cart-header"><div class="cart-title">🛒 Cart</div><div style="display:flex;gap:10px;align-items:center"><button class="cart-clear" onclick="clearCart()">Clear All</button><button class="expanded-close" onclick="toggleCart()" style="width:32px;height:32px;font-size:16px">✕</button></div></div>
     <div class="cart-body" id="cartBody"></div>
     <div class="cart-footer">
         <button class="cart-footer-btn download" id="downloadZipBtn" onclick="downloadZip()">↓ Download ZIP</button>
@@ -256,17 +266,25 @@ document.getElementById('statsBar').style.display='flex';document.getElementById
 document.getElementById('brandsGrid').innerHTML=brands.map(([f,b])=>{const l=b.logo,n=b.info?.full||f;return'<div class="brand-card" onclick="searchBrand(\''+esc(f)+'\')">'+
 (l?'<img class="brand-logo" src="'+esc(l)+'" alt="'+esc(n)+'" onerror="this.style.display=\'none\'">':'')+
 '<div class="brand-card-name">'+esc(n)+'</div><div class="brand-card-stats"><b>'+b.style_count+'</b> styles · <b>'+b.image_count+'</b> images</div></div>';}).join('');}
-function goHome(){document.getElementById('searchInput').value='';renderHome();}
-function searchBrand(f){const b=photoIndex[f];if(!b)return;document.getElementById('searchInput').value=b.info?.full||f;executeSearch(b.info?.full||f);}
+function goHome(){document.getElementById('searchInput').value='';currentBrowseBrand='';renderHome();}
+let currentBrowseBrand='';
+function searchBrand(f){
+    const b=photoIndex[f];if(!b)return;
+    currentBrowseBrand=b.info?.full||f;
+    executeSearch(b.info?.full||f);
+}
 function showShareBanner(){const b=document.getElementById('shareBanner');b.style.display='';b.innerHTML='<div class="share-banner"><div class="share-banner-text">📸 Shared collection — '+shareStyles.length+' style(s)</div><button class="share-banner-btn" onclick="downloadAllShared()">↓ Download All as ZIP</button></div>';}
-function onSearchInput(e){clearTimeout(searchTimeout);const q=e.target.value.trim();if(!q){renderHome();return;}searchTimeout=setTimeout(()=>executeSearch(q),300);}
+function onSearchInput(e){clearTimeout(searchTimeout);const q=e.target.value.trim();currentBrowseBrand='';if(!q){renderHome();return;}searchTimeout=setTimeout(()=>executeSearch(q),300);}
 async function executeSearch(q){try{const r=await fetch(API+'/api/search?q='+encodeURIComponent(q));const d=await r.json();currentResults=d.results||[];renderResults(q);}catch(e){}}
 function renderResults(q){document.getElementById('loadingState').style.display='none';document.getElementById('brandsSection').style.display='none';document.getElementById('statsBar').style.display='none';
 if(!currentResults.length){document.getElementById('resultsSection').style.display='none';document.getElementById('emptyState').style.display='';return;}
 document.getElementById('emptyState').style.display='none';document.getElementById('resultsSection').style.display='';
-document.getElementById('resultsTitle').textContent=shareMode?'Shared Collection':'Results for "'+q+'"';
-document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'')+' found';renderStyleCards(currentResults);}
-function renderStyleCards(results){const g=document.getElementById('stylesGrid');let f=results;if(currentFilter==='ghost')f=results.filter(r=>r.ghost_count>0);else if(currentFilter==='model')f=results.filter(r=>r.model_count>0);
+const bb=document.getElementById('backBar'),bn=document.getElementById('backBrandName');
+if(currentBrowseBrand){bb.style.display='flex';bn.textContent=currentBrowseBrand;document.getElementById('resultsTitle').textContent='';document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'');}
+else if(shareMode){bb.style.display='none';document.getElementById('resultsTitle').textContent='Shared Collection';document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'')+' found';}
+else{bb.style.display='none';document.getElementById('resultsTitle').textContent='Results for "'+q+'"';document.getElementById('resultsCount').textContent=currentResults.length+' style'+(currentResults.length!==1?'s':'')+' found';}
+renderStyleCards(currentResults);}
+function renderStyleCards(results){const g=document.getElementById('stylesGrid');let f=results;if(currentFilter==='ghost')f=results.filter(r=>r.ghost_count>0);else if(currentFilter==='model')f=results.filter(r=>r.model_count>0);else if(currentFilter==='both')f=results.filter(r=>r.ghost_count>0&&r.model_count>0);
 g.innerHTML=f.map(r=>{const bn=r.brand_info?.full||r.brand_folder,ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;
 const tu=S3O+'/'+r.style_code+'.jpg',fu=S3I+'/'+sf+'/'+r.style_code+'.jpg';
 const bd=[];if(r.ghost_count>0)bd.push('<span class="type-badge ghost">Ghost</span>');if(r.model_count>0)bd.push('<span class="type-badge model">Model</span>');
@@ -339,7 +357,7 @@ function clearCart(){cart={};saveCart();renderCart();updateCartBadge();}
 function saveCart(){try{sessionStorage.setItem('vps_cart',JSON.stringify(cart));}catch(e){}}
 function loadCart(){try{const s=sessionStorage.getItem('vps_cart');if(s)cart=JSON.parse(s);}catch(e){}updateCartBadge();}
 function updateCartBadge(){const n=Object.values(cart).reduce((a,c)=>a+c.images.length,0);document.getElementById('cartBadge').textContent=n||'';}
-function toggleCart(){document.getElementById('cartPanel').classList.toggle('open');renderCart();}
+function toggleCart(){document.getElementById('cartPanel').classList.toggle('open');document.getElementById('cartOverlay').classList.toggle('open');renderCart();}
 function renderCart(){const body=document.getElementById('cartBody');const keys=Object.keys(cart);
 if(!keys.length){body.innerHTML='<div class="cart-empty">Cart is empty. Click images to select, then add to cart.</div>';return;}
 body.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||item.brandFolder;
