@@ -1050,6 +1050,8 @@ def startup_scan():
     time.sleep(1)
     if DROPBOX_ACCESS_TOKEN or DROPBOX_REFRESH_TOKEN:
         log.info('Starting initial Dropbox scan...')
+        # Reset the startup scanning flag so scan_dropbox doesn't skip
+        scan_status['scanning'] = False
         scan_dropbox()  # This already calls load_inventory_styles() on completion
     else:
         log.warning('No Dropbox credentials — skipping auto-scan.')
