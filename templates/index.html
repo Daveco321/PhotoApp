@@ -621,6 +621,10 @@ async function openStyle(bf,sc){
         if(shareData&&shareData.items){const si=shareData.items.find(i=>i.style_code===sc);
             if(si)allowedPaths=new Set(si.images.map(i=>i.path));}
         let html='';lightboxImages=[];
+        // Build custom name lookup from share data
+        let nameMap={};
+        if(shareData&&shareData.items){const si=shareData.items.find(i=>i.style_code===sc);
+            if(si)si.images.forEach(i=>{if(i.customName)nameMap[i.path]=i.customName;});}
         ['ghost','model','other'].forEach(type=>{let imgs=d.images[type];if(!imgs||!imgs.length)return;
             if(allowedPaths)imgs=imgs.filter(img=>allowedPaths.has(img.path));
             if(!imgs.length)return;
@@ -629,9 +633,10 @@ async function openStyle(bf,sc){
             html+='<div class="expanded-section"><div class="expanded-section-title '+tc+'"><div class="dot"></div>'+label+' Photography ('+imgs.length+')</div><div class="expanded-images">';
             imgs.forEach((img,i)=>{
                 const idx=expandedImgs.length;
-                expandedImgs.push({path:img.path,filename:img.filename,angle:img.angle,type,url:img.url,selected:false});
-                lightboxImages.push({url:img.url,label:label+' — '+(img.angle||img.filename),filename:img.filename});
-                html+='<div class="exp-img-card" id="eic'+idx+'" onclick="imgClick('+idx+')" ondblclick="imgDblClick('+idx+')"><img src="'+esc(img.url)+'" alt="'+esc(img.filename)+'" loading="lazy"><div class="exp-img-label"><span>'+esc(img.angle||img.filename)+'</span><div class="exp-img-check" id="eick'+idx+'"></div></div></div>';
+                const displayName=nameMap[img.path]||img.angle||img.filename;
+                expandedImgs.push({path:img.path,filename:nameMap[img.path]||img.filename,angle:img.angle,type,url:img.url,selected:false});
+                lightboxImages.push({url:img.url,label:displayName,filename:nameMap[img.path]||img.filename});
+                html+='<div class="exp-img-card" id="eic'+idx+'" onclick="imgClick('+idx+')" ondblclick="imgDblClick('+idx+')"><img src="'+esc(img.url)+'" alt="'+esc(img.filename)+'" loading="lazy"><div class="exp-img-label"><span>'+esc(displayName)+'</span><div class="exp-img-check" id="eick'+idx+'"></div></div></div>';
             });html+='</div></div>';});
         // Inventory image from S3
         html+='<div class="expanded-section" id="inventorySection" style="display:none"><div class="expanded-section-title inv-title"><div class="dot"></div>Inventory Image</div><div class="expanded-images" id="inventoryImages"></div></div>';
@@ -769,7 +774,7 @@ async function generateShareLink(){
     // Build share items from cart (includes specific image selections)
     const items=keys.map(k=>{const c=cart[k];return{
         style_code:c.styleCode,brand:c.brandInfo?.full||c.brandFolder,brand_folder:c.brandFolder,
-        images:c.images.map(img=>({path:img.path,filename:img.filename,angle:img.angle,type:img.type}))
+        images:c.images.map(img=>({path:img.path,filename:img.customName||img.filename,customName:img.customName||'',angle:img.angle,type:img.type}))
     };});
     try{
         const resp=await fetch(API+'/api/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
