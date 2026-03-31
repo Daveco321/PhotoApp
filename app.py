@@ -1,10 +1,13 @@
 import os
+import io
 import json
 import time
 import re
 import threading
 import logging
-from flask import Flask, jsonify, request, send_from_directory, render_template
+import zipfile
+import urllib.request
+from flask import Flask, jsonify, request, send_from_directory, render_template, Response
 from flask_cors import CORS
 import dropbox
 from dropbox.exceptions import ApiError
@@ -704,6 +707,83 @@ def api_search():
     deduped.sort(key=lambda x: (x['brand_info'].get('full', ''), x['style_code']))
     
     return jsonify({'results': deduped, 'query': q, 'count': len(deduped)})
+
+
+@app.route('/api/download-zip', methods=['POST'])
+def api_download_zip():
+    """Generate a ZIP file from selected Dropbox image paths.
+    
+    Expects JSON body:
+    {
+        "items": [
+            {"style_code": "NA_201", "brand": "Nautica", "paths": ["/path/to/img1.jpg", ...]},
+            ...
+        ]
+    }
+    """
+    data = request.get_json()
+    items = data.get('items', [])
+    if not items:
+        return jsonify({'error': 'No items provided'}), 400
+    
+    # Limit total images
+    total_paths = sum(len(item.get('paths', [])) for item in items)
+    if total_paths > 200:
+        return jsonify({'error': f'Too many images ({total_paths}). Max 200 per download.'}), 400
+    
+    try:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for item in items:
+                style_code = item.get('style_code', 'unknown')
+                brand = item.get('brand', '')
+                paths = item.get('paths', [])
+                
+                # Create folder structure: Brand - StyleCode/filename.jpg
+                folder_name = f"{brand} - {style_code}" if brand else style_code
+                # Sanitize folder name
+                folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)
+                
+                for dbx_path in paths:
+                    url = get_temp_link(dbx_path)
+                    if not url:
+                        log.warning(f'Failed to get link for {dbx_path}')
+                        continue
+                    
+                    try:
+                        req = urllib.request.Request(url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+                        resp = urllib.request.urlopen(req, timeout=30)
+                        img_data = resp.read()
+                        
+                        filename = os.path.basename(dbx_path)
+                        zf.writestr(f"{folder_name}/{filename}", img_data)
+                    except Exception as e:
+                        log.warning(f'Failed to download {dbx_path}: {e}')
+                        continue
+        
+        buf.seek(0)
+        
+        # Generate filename
+        if len(items) == 1:
+            zip_name = f"{items[0].get('style_code', 'photos')}.zip"
+        else:
+            zip_name = f"Versa_Photos_{len(items)}_styles.zip"
+        
+        return Response(
+            buf.getvalue(),
+            mimetype='application/zip',
+            headers={'Content-Disposition': f'attachment; filename="{zip_name}"'}
+        )
+    
+    except Exception as e:
+        log.error(f'ZIP generation error: {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/share')
+def serve_share():
+    """Serve the frontend in share mode."""
+    return send_from_directory('templates', 'index.html')
 
 
 # ─── Startup ──────────────────────────────────────────────────────────────────
