@@ -972,13 +972,20 @@ def api_download_zip():
     Expects JSON body:
     {
         "items": [
-            {"style_code": "NA_201", "brand": "Nautica", "paths": ["/path/to/img1.jpg", ...]},
-            ...
-        ]
+            {
+                "style_code": "NA_201",
+                "brand": "Nautica",
+                "folder_name": "Custom Folder Name",  (optional)
+                "paths": ["/path/to/img1.jpg", ...],
+                "filenames": {"/path/to/img1.jpg": "Custom_Name.jpg"}  (optional)
+            }
+        ],
+        "zip_name": "My_Export.zip"  (optional)
     }
     """
     data = request.get_json()
     items = data.get('items', [])
+    custom_zip_name = data.get('zip_name', '')
     if not items:
         return jsonify({'error': 'No items provided'}), 400
     
@@ -994,9 +1001,12 @@ def api_download_zip():
                 style_code = item.get('style_code', 'unknown')
                 brand = item.get('brand', '')
                 paths = item.get('paths', [])
+                custom_filenames = item.get('filenames', {})
                 
-                # Create folder structure: Brand - StyleCode/filename.jpg
-                folder_name = f"{brand} - {style_code}" if brand else style_code
+                # Use custom folder name if provided, otherwise default
+                folder_name = item.get('folder_name', '').strip()
+                if not folder_name:
+                    folder_name = f"{brand} - {style_code}" if brand else style_code
                 # Sanitize folder name
                 folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)
                 
@@ -1011,7 +1021,10 @@ def api_download_zip():
                         resp = urllib.request.urlopen(req, timeout=15)
                         img_data = resp.read()
                         
-                        filename = os.path.basename(dbx_path)
+                        # Use custom filename if provided
+                        filename = custom_filenames.get(dbx_path, os.path.basename(dbx_path))
+                        # Sanitize filename
+                        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
                         zf.writestr(f"{folder_name}/{filename}", img_data)
                         if (idx + 1) % 10 == 0:
                             log.info(f'ZIP progress: {idx + 1}/{len(paths)} images for {style_code}')
@@ -1022,10 +1035,13 @@ def api_download_zip():
         buf.seek(0)
         
         # Generate filename
-        if len(items) == 1:
-            zip_name = f"{items[0].get('style_code', 'photos')}.zip"
+        if custom_zip_name:
+            zip_name = custom_zip_name if custom_zip_name.endswith('.zip') else custom_zip_name + '.zip'
+        elif len(items) == 1:
+            zip_name = f"{items[0].get('folder_name', items[0].get('style_code', 'photos'))}.zip"
         else:
             zip_name = f"Versa_Photos_{len(items)}_styles.zip"
+        zip_name = re.sub(r'[<>:"/\\|?*]', '_', zip_name)
         
         return Response(
             buf.getvalue(),
