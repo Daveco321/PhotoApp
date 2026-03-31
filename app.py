@@ -103,6 +103,8 @@ IGNORE_FOLDERS = {
     'updated photos', 'overstock pictures', 'belk dropship photos',
     'old photos', 'archive', 'temp', 'test',
 }
+# Also ignore folders that start with these prefixes (retailer-specific shoots)
+IGNORE_PREFIXES = ('kohls ', 'macys ', 'nordstrom', 'walmart', 'bjs ')
 
 # ─── Dropbox Client ──────────────────────────────────────────────────────────
 def get_dbx():
@@ -172,6 +174,8 @@ def parse_image_entry(path_lower, path_display):
     # Skip non-brand folders
     if brand_folder.lower() in IGNORE_FOLDERS:
         return None
+    if brand_folder.lower().startswith(IGNORE_PREFIXES):
+        return None
     
     # Determine photo type (ghost/model)
     photo_type = 'other'
@@ -187,7 +191,7 @@ def parse_image_entry(path_lower, path_display):
     # Determine DPI
     dpi = 72
     for mp in middle_parts:
-        if '300' in mp and 'DPI' in mp.upper():
+        if '300' in mp and 'DPI' in mp:
             dpi = 300
     
     # Find style code — look for folder matching XX_### pattern
@@ -384,6 +388,23 @@ def scan_dropbox():
 
 
 # ─── Temp Link Generation ────────────────────────────────────────────────────
+_dbx_client = None
+_dbx_client_lock = threading.Lock()
+
+def get_dbx_cached():
+    """Get a cached Dropbox client (avoids re-creating on every API call)."""
+    global _dbx_client
+    with _dbx_client_lock:
+        if _dbx_client is None:
+            _dbx_client = get_dbx()
+        return _dbx_client
+
+def reset_dbx_client():
+    """Reset cached client (e.g., after auth error)."""
+    global _dbx_client
+    with _dbx_client_lock:
+        _dbx_client = None
+
 def get_temp_link(dbx_path):
     """Get a temporary download link for a Dropbox file, with caching."""
     now = time.time()
@@ -393,11 +414,25 @@ def get_temp_link(dbx_path):
             return url
     
     try:
-        dbx = get_dbx()
+        dbx = get_dbx_cached()
         result = dbx.files_get_temporary_link(dbx_path)
         url = result.link
         link_cache[dbx_path] = (url, now + LINK_TTL)
         return url
+    except ApiError as e:
+        if 'expired_access_token' in str(e):
+            reset_dbx_client()
+            try:
+                dbx = get_dbx_cached()
+                result = dbx.files_get_temporary_link(dbx_path)
+                url = result.link
+                link_cache[dbx_path] = (url, now + LINK_TTL)
+                return url
+            except Exception as e2:
+                log.error(f'Failed to get temp link (retry) for {dbx_path}: {e2}')
+                return None
+        log.error(f'Failed to get temp link for {dbx_path}: {e}')
+        return None
     except Exception as e:
         log.error(f'Failed to get temp link for {dbx_path}: {e}')
         return None
@@ -744,7 +779,7 @@ def api_download_zip():
                 # Sanitize folder name
                 folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)
                 
-                for dbx_path in paths:
+                for idx, dbx_path in enumerate(paths):
                     url = get_temp_link(dbx_path)
                     if not url:
                         log.warning(f'Failed to get link for {dbx_path}')
@@ -752,11 +787,13 @@ def api_download_zip():
                     
                     try:
                         req = urllib.request.Request(url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
-                        resp = urllib.request.urlopen(req, timeout=30)
+                        resp = urllib.request.urlopen(req, timeout=15)
                         img_data = resp.read()
                         
                         filename = os.path.basename(dbx_path)
                         zf.writestr(f"{folder_name}/{filename}", img_data)
+                        if (idx + 1) % 10 == 0:
+                            log.info(f'ZIP progress: {idx + 1}/{len(paths)} images for {style_code}')
                     except Exception as e:
                         log.warning(f'Failed to download {dbx_path}: {e}')
                         continue
