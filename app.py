@@ -105,6 +105,7 @@ scan_status = {
 link_cache = {}       # dropbox_path → (temp_url, expiry_timestamp)
 LINK_TTL = 3 * 3600   # 3 hours (Dropbox links last 4h)
 scan_lock = threading.Lock()
+_scan_running = False  # Internal flag: is a scan thread actively running?
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.webp', '.bmp'}
 
@@ -265,13 +266,14 @@ def parse_image_entry(path_lower, path_display):
 # ─── Dropbox Scanner ─────────────────────────────────────────────────────────
 def scan_dropbox():
     """Recursively scan the Ecom_Photos Dropbox folder and build the index."""
-    global photo_index, scan_status
+    global photo_index, scan_status, _scan_running
     
-    if scan_status['scanning']:
+    if _scan_running:
         log.info('Scan already in progress, skipping.')
         return
     
     with scan_lock:
+        _scan_running = True
         scan_status['scanning'] = True
         scan_status['error'] = None
         scan_status['progress'] = 'Connecting to Dropbox...'
@@ -384,6 +386,7 @@ def scan_dropbox():
             scan_status['styles'] = len(total_styles)
             scan_status['images'] = total_images
             scan_status['progress'] = 'Complete'
+            _scan_running = False
         
         log.info(f'Scan complete: {len(new_index)} brands, {len(total_styles)} styles, {total_images} images')
         
@@ -402,6 +405,7 @@ def scan_dropbox():
             scan_status['scanning'] = False
             scan_status['error'] = str(e)
             scan_status['progress'] = f'Error: {e}'
+            _scan_running = False
 
 
 # ─── Inventory Merge ──────────────────────────────────────────────────────────
@@ -645,7 +649,7 @@ def api_status():
 @app.route('/api/scan', methods=['POST'])
 def api_scan():
     """Trigger a Dropbox scan (runs in background thread)."""
-    if scan_status['scanning']:
+    if _scan_running:
         return jsonify({'status': 'already_scanning', **scan_status})
     t = threading.Thread(target=scan_dropbox, daemon=True)
     t.start()
@@ -814,6 +818,41 @@ def api_search():
     
     # Split by comma, newline, tab, or multiple spaces for multi-style queries
     raw_terms = re.split(r'[,\n\t]+|\s{2,}', q)
+    
+    # If we got a single term with spaces, check if it's space-separated numbers/codes
+    # "201 207" → ["201", "207"], "NA 201 BE 001" → ["NA_201", "BE_001"]
+    # but "Ben Sherman" stays as one term (brand name)
+    if len(raw_terms) == 1 and ' ' in raw_terms[0].strip():
+        parts = raw_terms[0].strip().split()
+        reassembled = []
+        i = 0
+        is_list = True
+        while i < len(parts):
+            p = parts[i].upper()
+            # Two-letter prefix + number in next part: "NA 201" → "NA_201"
+            if len(p) == 2 and p.isalpha() and i + 1 < len(parts) and parts[i+1].isdigit():
+                reassembled.append(f"{p}_{parts[i+1]}")
+                i += 2
+                continue
+            if p.isdigit():
+                reassembled.append(p)
+                i += 1
+                continue
+            if re.match(r'^[A-Z]{2}[_]\d+$', p):
+                reassembled.append(p)
+                i += 1
+                continue
+            sku = parse_versa_sku(p)
+            if sku:
+                reassembled.append(p)
+                i += 1
+                continue
+            # Doesn't look like a code — probably a brand name
+            is_list = False
+            break
+        if is_list and reassembled:
+            raw_terms = reassembled
+    
     terms = [t.strip().upper() for t in raw_terms if t.strip()]
     
     # Pre-process: convert full Versa SKUs to style codes
