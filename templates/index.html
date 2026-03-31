@@ -276,7 +276,33 @@ function searchBrand(f){
     executeSearch(b.info?.full||f);
 }
 function showShareBanner(){const b=document.getElementById('shareBanner');b.style.display='';b.innerHTML='<div class="share-banner"><div class="share-banner-text">📸 Shared collection — '+shareStyles.length+' style(s)</div><button class="share-banner-btn" onclick="downloadAllShared()">↓ Download All as ZIP</button></div>';}
-function onSearchInput(e){clearTimeout(searchTimeout);const q=e.target.value.trim();currentBrowseBrand='';if(!q){renderHome();return;}searchTimeout=setTimeout(()=>executeSearch(q),300);}
+function onSearchInput(e){clearTimeout(searchTimeout);currentBrowseBrand='';
+const raw=e.target.value;const q=raw.trim();if(!q){renderHome();return;}
+searchTimeout=setTimeout(()=>{
+    // Auto-format: "201 207" → "201, 207", "NA 201 BE 001" → "NA_201, BE_001"
+    const formatted=autoFormatSpaces(raw.trim());
+    if(formatted!==raw.trim()){e.target.value=formatted;}
+    executeSearch(formatted||q);
+},300);}
+function autoFormatSpaces(val){
+    if(!val.includes(' '))return val;
+    // Don't reformat if already has commas
+    if(val.includes(','))return val;
+    const parts=val.split(/\s+/);
+    const out=[];let i=0;let allCodes=true;
+    while(i<parts.length){
+        const p=parts[i].toUpperCase();
+        // "NA 201" pattern
+        if(p.length===2&&/^[A-Z]{2}$/.test(p)&&i+1<parts.length&&/^\d+$/.test(parts[i+1])){
+            out.push(p+'_'+parts[i+1]);i+=2;continue;}
+        if(/^\d+$/.test(p)){out.push(p);i++;continue;}
+        if(/^[A-Z]{2}_\d+$/i.test(p)){out.push(p.toUpperCase());i++;continue;}
+        const sku=parseSku(p);if(sku){out.push(sku);i++;continue;}
+        allCodes=false;break;
+    }
+    if(allCodes&&out.length>1)return out.join(', ');
+    return val;
+}
 async function executeSearch(q){try{const r=await fetch(API+'/api/search?q='+encodeURIComponent(q));const d=await r.json();currentResults=d.results||[];renderResults(q);}catch(e){}}
 function renderResults(q){document.getElementById('loadingState').style.display='none';document.getElementById('brandsSection').style.display='none';document.getElementById('statsBar').style.display='none';
 if(!currentResults.length){document.getElementById('resultsSection').style.display='none';document.getElementById('emptyState').style.display='';return;}
