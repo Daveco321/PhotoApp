@@ -376,9 +376,10 @@ function addSelectedToCart(){
     const sel=expandedImgs.filter(i=>i.selected);
     if(!sel.length){toast('Select images first (click to select)');return;}
     const key=cartKey(currentExpBrand,currentExpStyle);
-    if(!cart[key])cart[key]={brandFolder:currentExpBrand,brandInfo:currentExpBrandInfo?.info,styleCode:currentExpStyle,images:[]};
+    const bn=currentExpBrandInfo?.info?.full||currentExpBrand;
+    if(!cart[key])cart[key]={brandFolder:currentExpBrand,brandInfo:currentExpBrandInfo?.info,styleCode:currentExpStyle,folderName:bn+' - '+currentExpStyle,images:[]};
     const existing=new Set(cart[key].images.map(i=>i.path));
-    sel.forEach(img=>{if(!existing.has(img.path)){cart[key].images.push({path:img.path,filename:img.filename,angle:img.angle,type:img.type,url:img.url});}});
+    sel.forEach(img=>{if(!existing.has(img.path)){cart[key].images.push({path:img.path,filename:img.filename,customName:'',angle:img.angle,type:img.type,url:img.url});}});
     saveCart();updateCartBadge();toast(sel.length+' image(s) added to cart');
 }
 function removeFromCart(key){delete cart[key];saveCart();renderCart();updateCartBadge();}
@@ -387,24 +388,37 @@ function saveCart(){try{sessionStorage.setItem('vps_cart',JSON.stringify(cart));
 function loadCart(){try{const s=sessionStorage.getItem('vps_cart');if(s)cart=JSON.parse(s);}catch(e){}updateCartBadge();}
 function updateCartBadge(){const n=Object.values(cart).reduce((a,c)=>a+c.images.length,0);document.getElementById('cartBadge').textContent=n||'';}
 function toggleCart(){document.getElementById('cartPanel').classList.toggle('open');document.getElementById('cartOverlay').classList.toggle('open');renderCart();}
+function updateFolderName(key,val){if(cart[key])cart[key].folderName=val;saveCart();}
+function updateFileName(key,imgIdx,val){if(cart[key]&&cart[key].images[imgIdx])cart[key].images[imgIdx].customName=val;saveCart();}
+function toggleCartExpand(key){const el=document.getElementById('cart-files-'+CSS.escape(key));if(el)el.style.display=el.style.display==='none'?'':'none';}
 function renderCart(){const body=document.getElementById('cartBody');const keys=Object.keys(cart);
 if(!keys.length){body.innerHTML='<div class="cart-empty">Cart is empty. Click images to select, then add to cart.</div>';return;}
-body.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||item.brandFolder;
-return'<div class="cart-item"><div class="cart-item-header"><div><div class="cart-item-title">'+esc(item.styleCode)+'</div><div class="cart-item-brand">'+esc(bn)+'</div></div><button class="cart-item-remove" onclick="removeFromCart(\''+esc(k)+'\')">✕</button></div><div class="cart-item-images">'+
-item.images.slice(0,8).map(img=>'<img class="cart-thumb" src="'+esc(img.url)+'" alt="'+esc(img.filename)+'">').join('')+
-(item.images.length>8?'<span style="color:rgba(255,255,255,0.4);font-size:11px;display:flex;align-items:center">+'+( item.images.length-8)+' more</span>':'')+
-'</div><div class="cart-item-count">'+item.images.length+' image(s)</div></div>';}).join('');}
+body.innerHTML=keys.map(k=>{const item=cart[k];const bn=item.brandInfo?.full||item.brandFolder;const ek=esc(k);
+return'<div class="cart-item">'+
+'<div class="cart-item-header"><div><div class="cart-item-title">'+esc(item.styleCode)+'</div><div class="cart-item-brand">'+esc(bn)+'</div></div><button class="cart-item-remove" onclick="removeFromCart(\''+ek+'\')">✕</button></div>'+
+'<div style="margin:8px 0"><label style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">Folder Name</label><input type="text" value="'+esc(item.folderName||'')+'" onchange="updateFolderName(\''+ek+'\',this.value)" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.08);color:white;font-size:12px;font-family:inherit;outline:none;margin-top:2px"></div>'+
+'<div class="cart-item-images">'+item.images.slice(0,6).map(img=>'<img class="cart-thumb" src="'+esc(img.url)+'" alt="'+esc(img.filename)+'">').join('')+
+(item.images.length>6?'<span style="color:rgba(255,255,255,0.4);font-size:11px;display:flex;align-items:center">+'+( item.images.length-6)+' more</span>':'')+
+'</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><div class="cart-item-count">'+item.images.length+' image(s)</div><button onclick="toggleCartExpand(\''+ek+'\')" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:11px;cursor:pointer;font-family:inherit;text-decoration:underline">Rename files ▾</button></div>'+
+'<div id="cart-files-'+ek+'" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto">'+item.images.map((img,idx)=>{
+const dispName=img.customName||img.filename;
+return'<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><img src="'+esc(img.url)+'" style="width:28px;height:28px;border-radius:4px;object-fit:contain;background:rgba(255,255,255,0.08);flex-shrink:0"><input type="text" value="'+esc(dispName)+'" placeholder="'+esc(img.filename)+'" onchange="updateFileName(\''+ek+'\','+idx+',this.value)" style="flex:1;padding:4px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:white;font-size:11px;font-family:inherit;outline:none"></div>';}).join('')+
+'</div></div>';}).join('');}
 
 // ── ZIP Download ──
 async function downloadZip(){
     const keys=Object.keys(cart);if(!keys.length){toast('Cart is empty');return;}
     const btn=document.getElementById('downloadZipBtn');btn.disabled=true;btn.textContent='⏳ Generating ZIP...';
-    const items=keys.map(k=>({style_code:cart[k].styleCode,brand:cart[k].brandInfo?.full||cart[k].brandFolder,paths:cart[k].images.map(i=>i.path)}));
+    const items=keys.map(k=>{
+        const c=cart[k];const fnames={};
+        c.images.forEach(img=>{if(img.customName)fnames[img.path]=img.customName;});
+        return{style_code:c.styleCode,brand:c.brandInfo?.full||c.brandFolder,folder_name:c.folderName||'',paths:c.images.map(i=>i.path),filenames:fnames};
+    });
     try{
         const r=await fetch(API+'/api/download-zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
         if(!r.ok){const e=await r.json();throw new Error(e.error||'Download failed');}
         const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');
-        a.href=url;a.download=items.length===1?items[0].style_code+'.zip':'Versa_Photos.zip';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+        a.href=url;a.download=items.length===1?(items[0].folder_name||items[0].style_code)+'.zip':'Versa_Photos.zip';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
         toast('ZIP downloaded!');
     }catch(e){toast('Error: '+e.message);}finally{btn.disabled=false;btn.textContent='↓ Download ZIP';}
 }
