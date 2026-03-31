@@ -3,6 +3,7 @@ import io
 import json
 import time
 import re
+import base64 as b64mod
 import threading
 import logging
 import zipfile
@@ -427,17 +428,17 @@ def extract_image_code(sku, brand_abbr):
 
 
 def load_inventory_styles():
-    """Fetch all styles from the inventory API and merge into photo_index.
+    """Fetch inventory data to enrich existing photo index entries with brand names.
     
-    This ensures every style in the catalog appears in Photo Studio,
-    not just styles with professional Dropbox photos.
+    Does NOT add new styles — only styles with actual photos (from Dropbox scan
+    or /dropbox-photos) should appear. This just updates brand display names.
     """
     global photo_index
     if not INVENTORY_API_URL:
         return
     
     try:
-        log.info(f'Fetching inventory styles from {INVENTORY_API_URL}/inventory ...')
+        log.info(f'Fetching inventory data from {INVENTORY_API_URL}/inventory ...')
         req = urllib.request.Request(
             f'{INVENTORY_API_URL}/inventory',
             headers={'User-Agent': 'VersaPhotoStudio/1.0'}
@@ -445,59 +446,22 @@ def load_inventory_styles():
         resp = urllib.request.urlopen(req, timeout=30)
         raw = json.loads(resp.read())
         
-        added = 0
+        enriched = 0
         for brand_abbr, brand_data in raw.items():
             if not isinstance(brand_data, dict):
                 continue
-            items = brand_data.get('items', [])
-            if not items:
-                continue
             
             full_name = brand_data.get('full_name', brand_abbr)
-            prefix = BRAND_IMAGE_PREFIX.get(brand_abbr, brand_abbr[:2])
             
-            # Find or create matching brand folder in photo_index
-            brand_folder = None
+            # Find matching brand folder — only update, don't create
             for folder, bdata in photo_index.items():
                 if bdata['info'].get('abbr', '').upper() == brand_abbr.upper():
-                    brand_folder = folder
+                    if bdata['info'].get('full', '') == folder:
+                        bdata['info']['full'] = full_name
+                        enriched += 1
                     break
-            
-            if not brand_folder:
-                brand_folder = brand_abbr
-                photo_index[brand_folder] = {
-                    'info': {
-                        'abbr': brand_abbr,
-                        'prefix': prefix,
-                        'full': full_name,
-                    },
-                    'styles': {},
-                }
-            
-            brand_entry = photo_index[brand_folder]
-            # Update full name from inventory if we only had a folder name
-            if brand_entry['info'].get('full', '') == brand_folder:
-                brand_entry['info']['full'] = full_name
-            
-            # Extract unique style codes from all SKUs
-            seen_styles = set()
-            for item in items:
-                sku = item.get('sku', '')
-                if not sku:
-                    continue
-                style_code = extract_image_code(sku, brand_abbr)
-                if style_code in seen_styles:
-                    continue
-                seen_styles.add(style_code)
-                
-                if style_code not in brand_entry['styles']:
-                    brand_entry['styles'][style_code] = {
-                        'ghost': [], 'model': [], 'other': []
-                    }
-                    added += 1
         
-        log.info(f'Merged {added} additional inventory styles into photo index '
-                 f'(total styles now: {sum(len(b["styles"]) for b in photo_index.values())})')
+        log.info(f'Enriched {enriched} brand names from inventory API')
     
     except Exception as e:
         log.warning(f'Failed to fetch inventory styles: {e}')
@@ -1000,33 +964,48 @@ def api_download_zip():
                 style_code = item.get('style_code', 'unknown')
                 brand = item.get('brand', '')
                 paths = item.get('paths', [])
+                urls = item.get('urls', {})       # path → direct URL for non-Dropbox images
+                base64s = item.get('base64', {})   # path → data:image/... for override images
                 custom_filenames = item.get('filenames', {})
                 
-                # Use custom folder name if provided, otherwise default
                 folder_name = item.get('folder_name', '').strip()
                 if not folder_name:
                     folder_name = f"{brand} - {style_code}" if brand else style_code
-                # Sanitize folder name
                 folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)
                 
                 for idx, dbx_path in enumerate(paths):
-                    url = get_temp_link(dbx_path)
-                    if not url:
-                        log.warning(f'Failed to get link for {dbx_path}')
-                        continue
+                    filename = custom_filenames.get(dbx_path, os.path.basename(dbx_path))
+                    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
                     
                     try:
-                        req = urllib.request.Request(url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
-                        resp = urllib.request.urlopen(req, timeout=15)
-                        img_data = resp.read()
+                        img_data = None
                         
-                        # Use custom filename if provided
-                        filename = custom_filenames.get(dbx_path, os.path.basename(dbx_path))
-                        # Sanitize filename
-                        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
-                        zf.writestr(f"{folder_name}/{filename}", img_data)
-                        if (idx + 1) % 10 == 0:
-                            log.info(f'ZIP progress: {idx + 1}/{len(paths)} images for {style_code}')
+                        # Base64 override image
+                        if dbx_path.startswith('override://') and dbx_path in base64s:
+                            b64 = base64s[dbx_path]
+                            if ',' in b64:
+                                b64 = b64.split(',', 1)[1]
+                            img_data = b64mod.b64decode(b64)
+                        
+                        # S3 direct URL
+                        elif dbx_path.startswith('s3://') and dbx_path in urls:
+                            req = urllib.request.Request(urls[dbx_path], headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+                            resp = urllib.request.urlopen(req, timeout=15)
+                            img_data = resp.read()
+                        
+                        # Regular Dropbox path
+                        else:
+                            url = get_temp_link(dbx_path)
+                            if not url:
+                                continue
+                            req = urllib.request.Request(url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+                            resp = urllib.request.urlopen(req, timeout=15)
+                            img_data = resp.read()
+                        
+                        if img_data:
+                            zf.writestr(f"{folder_name}/{filename}", img_data)
+                            if (idx + 1) % 10 == 0:
+                                log.info(f'ZIP progress: {idx + 1}/{len(paths)} images for {style_code}')
                     except Exception as e:
                         log.warning(f'Failed to download {dbx_path}: {e}')
                         continue
