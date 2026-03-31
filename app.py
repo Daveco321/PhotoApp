@@ -25,10 +25,20 @@ DROPBOX_REFRESH_TOKEN = os.environ.get('DROPBOX_REFRESH_TOKEN', '')
 DROPBOX_APP_KEY = os.environ.get('DROPBOX_APP_KEY', '')
 DROPBOX_APP_SECRET = os.environ.get('DROPBOX_APP_SECRET', '')
 DROPBOX_BASE_PATH = os.environ.get('DROPBOX_BASE_PATH', '/Ecom_Photos')
+INVENTORY_API_URL = os.environ.get('INVENTORY_API_URL', 'https://versa-inventory-api.onrender.com')
 
 # S3 URLs for regular inventory images (public, no auth needed)
 S3_INVENTORY_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/PHOTOS+INVENTORY'
 S3_OVERRIDE_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/STYLE+OVERRIDES'
+
+# SKU brand code → image prefix (same as inventory index extractImageCode)
+BRAND_IMAGE_PREFIX = {
+    "NAUTICA": "NA", "DKNY": "DK", "EB": "EB", "REEBOK": "RB", "VINCE": "VC",
+    "BEN": "BE", "USPA": "US", "CHAPS": "CH", "LUCKY": "LB", "JNY": "JN",
+    "BEENE": "GB", "NICOLE": "NM", "SHAQ": "SH", "TAYION": "TA", "STRAHAN": "MS",
+    "VD": "VD", "VERSA": "VR", "CHEROKEE": "CK", "AMERICA": "AC", "BLO": "BL",
+    "DN": "D9", "KL": "KL", "NE": "NE"
+}
 
 # ─── Brand Mapping ────────────────────────────────────────────────────────────
 # Maps Dropbox folder names → brand metadata
@@ -379,12 +389,111 @@ def scan_dropbox():
         
         log.info(f'Scan complete: {len(new_index)} brands, {len(total_styles)} styles, {total_images} images')
         
+        # Merge inventory styles so all catalog styles appear (not just Dropbox ones)
+        load_inventory_styles()
+        
+        # Update counts after merge
+        with scan_lock:
+            scan_status['brands'] = len(photo_index)
+            scan_status['styles'] = sum(len(b['styles']) for b in photo_index.values())
+            scan_status['images'] = total_images  # Dropbox images only for this count
+        
     except Exception as e:
         log.error(f'Scan error: {e}', exc_info=True)
         with scan_lock:
             scan_status['scanning'] = False
             scan_status['error'] = str(e)
             scan_status['progress'] = f'Error: {e}'
+
+
+# ─── Inventory Merge ──────────────────────────────────────────────────────────
+def extract_image_code(sku, brand_abbr):
+    """Convert a Versa SKU to an image code (same logic as inventory index)."""
+    prefix = BRAND_IMAGE_PREFIX.get(brand_abbr, (brand_abbr or '')[:2])
+    base_sku = sku.split('-')[0]
+    numbers = re.findall(r'\d+', base_sku)
+    if numbers:
+        main_number = max(numbers, key=len)
+        padded = main_number.zfill(3)
+        return f"{prefix}_{padded}"
+    return f"{prefix}_{base_sku}"
+
+
+def load_inventory_styles():
+    """Fetch all styles from the inventory API and merge into photo_index.
+    
+    This ensures every style in the catalog appears in Photo Studio,
+    not just styles with professional Dropbox photos.
+    """
+    global photo_index
+    if not INVENTORY_API_URL:
+        return
+    
+    try:
+        log.info(f'Fetching inventory styles from {INVENTORY_API_URL}/inventory ...')
+        req = urllib.request.Request(
+            f'{INVENTORY_API_URL}/inventory',
+            headers={'User-Agent': 'VersaPhotoStudio/1.0'}
+        )
+        resp = urllib.request.urlopen(req, timeout=30)
+        raw = json.loads(resp.read())
+        
+        added = 0
+        for brand_abbr, brand_data in raw.items():
+            if not isinstance(brand_data, dict):
+                continue
+            items = brand_data.get('items', [])
+            if not items:
+                continue
+            
+            full_name = brand_data.get('full_name', brand_abbr)
+            prefix = BRAND_IMAGE_PREFIX.get(brand_abbr, brand_abbr[:2])
+            
+            # Find or create matching brand folder in photo_index
+            brand_folder = None
+            for folder, bdata in photo_index.items():
+                if bdata['info'].get('abbr', '').upper() == brand_abbr.upper():
+                    brand_folder = folder
+                    break
+            
+            if not brand_folder:
+                brand_folder = brand_abbr
+                photo_index[brand_folder] = {
+                    'info': {
+                        'abbr': brand_abbr,
+                        'prefix': prefix,
+                        'full': full_name,
+                    },
+                    'styles': {},
+                }
+            
+            brand_entry = photo_index[brand_folder]
+            # Update full name from inventory if we only had a folder name
+            if brand_entry['info'].get('full', '') == brand_folder:
+                brand_entry['info']['full'] = full_name
+            
+            # Extract unique style codes from all SKUs
+            seen_styles = set()
+            for item in items:
+                sku = item.get('sku', '')
+                if not sku:
+                    continue
+                style_code = extract_image_code(sku, brand_abbr)
+                if style_code in seen_styles:
+                    continue
+                seen_styles.add(style_code)
+                
+                if style_code not in brand_entry['styles']:
+                    brand_entry['styles'][style_code] = {
+                        'ghost': [], 'model': [], 'other': []
+                    }
+                    added += 1
+        
+        log.info(f'Merged {added} additional inventory styles into photo index '
+                 f'(total styles now: {sum(len(b["styles"]) for b in photo_index.values())})')
+    
+    except Exception as e:
+        log.warning(f'Failed to fetch inventory styles: {e}')
 
 
 # ─── Temp Link Generation ────────────────────────────────────────────────────
@@ -829,7 +938,7 @@ def startup_scan():
     time.sleep(3)
     if DROPBOX_ACCESS_TOKEN or DROPBOX_REFRESH_TOKEN:
         log.info('Starting initial Dropbox scan...')
-        scan_dropbox()
+        scan_dropbox()  # This already calls load_inventory_styles() on completion
     else:
         log.warning('No Dropbox credentials — skipping auto-scan.')
 
