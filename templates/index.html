@@ -959,15 +959,45 @@ function formatAiText(t){return t.replace(/\*\*(.*?)\*\*/g,'<b>$1</b>').replace(
 
 // ── Rename Studio ──
 function openRenameStudio(){
-    // Close cart panel first
     document.getElementById('cartPanel').classList.remove('open');
     document.getElementById('cartOverlay').classList.remove('open');
-    // Close AI panel if open
     document.getElementById('aiPanel').classList.remove('open');
-    // Open rename studio
     renderRenameStudio();
     document.getElementById('renameStudio').classList.add('open');
     document.body.style.overflow='hidden';
+    // Progressively load real image URLs for each style
+    hydrateRenameImages();
+}
+async function hydrateRenameImages(){
+    const keys=Object.keys(cart);
+    for(const k of keys){
+        const item=cart[k];const sid=safeId(k);
+        const badge=document.getElementById('rss_'+sid);
+        // Skip if all images already have URLs
+        if(item.images.every(img=>img.url&&img.url!==''))continue;
+        if(badge){badge.textContent='Loading images...';badge.style.color='#f59e0b';}
+        try{
+            const r=await fetch(API+'/api/images/'+encodeURIComponent(item.brandFolder)+'/'+encodeURIComponent(item.styleCode));
+            const d=await r.json();
+            if(d.images){
+                // Build lookup: path → url
+                const urlMap={};
+                ['ghost','model','other'].forEach(t=>{if(d.images[t])d.images[t].forEach(di=>{urlMap[di.path]=di.url;});});
+                // Update cart and DOM
+                item.images.forEach((img,idx)=>{
+                    if(urlMap[img.path]){
+                        img.url=urlMap[img.path];
+                        const imgEl=document.querySelector('#rsc_'+sid+'_'+idx+' img');
+                        if(imgEl)imgEl.src=img.url;
+                    }
+                });
+            }
+            if(badge){badge.textContent='Ready';badge.style.color='rgba(255,255,255,0.3)';badge.style.background='';}
+        }catch(e){
+            if(badge){badge.textContent='⚠ Load failed';badge.style.color='#ef4444';}
+        }
+    }
+    saveCart();
 }
 function closeRenameStudio(){
     document.getElementById('renameStudio').classList.remove('open');
