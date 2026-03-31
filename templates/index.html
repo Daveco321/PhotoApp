@@ -204,8 +204,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rs-style-brand{font-size:12px;color:rgba(255,255,255,0.5)}
 .rs-style-status{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
 .rs-images{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.rs-img-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;transition:border-color 0.3s}
+.rs-img-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;transition:border-color 0.3s;position:relative}
 .rs-img-card.renamed{border-color:rgba(34,197,94,0.5);background:rgba(34,197,94,0.05)}
+.rs-img-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:rgba(255,255,255,0.6);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;z-index:2;backdrop-filter:blur(4px)}
+.rs-img-card:hover .rs-img-remove{opacity:1}
+.rs-img-remove:hover{background:rgba(239,68,68,0.8);color:white}
 .rs-img-card img{width:100%;aspect-ratio:1;object-fit:contain;background:rgba(255,255,255,0.03)}
 .rs-img-info{padding:8px 10px}
 .rs-img-orig{font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -317,6 +320,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         </div>
         <div style="display:flex;align-items:center;gap:8px">
             <span id="rsStatus" style="font-size:12px;color:rgba(255,255,255,0.4)"></span>
+            <button class="rs-back" onclick="var c=removeDuplicates();addRsMsg('bot','✅ Removed <b>'+c+'</b> duplicates.')" style="border-color:rgba(245,158,11,0.3);color:#f59e0b">🧹 Remove Duplicates</button>
             <button class="rs-back" onclick="closeRenameStudio()" style="background:var(--purple);border-color:var(--purple)">Done & Close</button>
         </div>
     </div>
@@ -325,7 +329,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="rs-chat">
             <div class="ai-panel-hdr"><div><h3>✨ AI Rename Assistant</h3><span>Describe how to rename</span></div></div>
             <div class="ai-msgs" id="rsMsgs">
-                <div class="ai-msg bot">Tell me how to rename your images. I'll analyze each one and apply names in real-time.<br><br>Try:<br>• <i>"Rename model images to Front, Back, Side"</i><br>• <i>"Name ghost shots as Flat Front, Flat Back"</i><br>• <i>"Rename all images descriptively"</i></div>
+                <div class="ai-msg bot">Tell me how to rename your images. I'll analyze each one and apply names in real-time.<br><br>Try:<br>• <i>"Rename model images to Front, Back, Side"</i><br>• <i>"Name ghost shots as Flat Front, Flat Back"</i><br>• <i>"Remove duplicates"</i><br>• <i>"Rename all images descriptively"</i><br><br>Hover over any image and click ✕ to remove it.</div>
             </div>
             <div class="ai-input-area">
                 <input type="text" class="ai-input" id="rsInput" placeholder="e.g. Rename model images to Front, Back, Side..." onkeydown="if(event.key==='Enter')sendRsAI()">
@@ -1015,7 +1019,7 @@ function renderRenameStudio(){
             const ab=item.brandInfo?.abbr||'';const sf=S3M[ab]||ab;
             const thumbUrl=img.url||(getOverrideImage(item.styleCode))||S3O+'/'+item.styleCode+'.jpg';
             const isRenamed=!!img.customName;
-            return'<div class="rs-img-card'+(isRenamed?' renamed':'')+'" id="rsc_'+safeId(k)+'_'+idx+'"><img src="'+esc(thumbUrl)+'" onerror="this.src=\''+S3I+'/'+sf+'/'+item.styleCode+'.jpg\';this.onerror=null" loading="lazy"><div class="rs-img-info"><div class="rs-img-orig" title="'+esc(img.filename)+'">'+esc(img.filename)+'</div><input type="text" class="rs-img-name'+(isRenamed?' just-renamed':'')+'" value="'+esc(img.customName||'')+'" placeholder="'+esc(img.filename)+'" onchange="updateRsName(\''+esc(k)+'\','+idx+',this.value)" id="rsn_'+safeId(k)+'_'+idx+'"></div></div>';
+            return'<div class="rs-img-card'+(isRenamed?' renamed':'')+'" id="rsc_'+safeId(k)+'_'+idx+'"><button class="rs-img-remove" onclick="removeRsImage(\''+esc(k)+'\','+idx+')" title="Remove image">✕</button><img src="'+esc(thumbUrl)+'" onerror="this.src=\''+S3I+'/'+sf+'/'+item.styleCode+'.jpg\';this.onerror=null" loading="lazy"><div class="rs-img-info"><div class="rs-img-orig" title="'+esc(img.filename)+'">'+esc(img.filename)+'</div><input type="text" class="rs-img-name'+(isRenamed?' just-renamed':'')+'" value="'+esc(img.customName||'')+'" placeholder="'+esc(img.filename)+'" onchange="updateRsName(\''+esc(k)+'\','+idx+',this.value)" id="rsn_'+safeId(k)+'_'+idx+'"></div></div>';
         }).join('')+'</div></div>';
     }).join('');
     document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
@@ -1028,10 +1032,38 @@ function updateRsName(cartKey,idx,val){
         saveCart();
         const card=document.getElementById('rsc_'+safeId(cartKey)+'_'+idx);
         if(card){if(val)card.classList.add('renamed');else card.classList.remove('renamed');}
-        // Update count
-        let total=0,renamed=0;Object.values(cart).forEach(c=>{c.images.forEach(i=>{total++;if(i.customName)renamed++;});});
-        document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
+        updateRsStatus();
     }
+}
+function removeRsImage(cartKey,idx){
+    if(!cart[cartKey])return;
+    cart[cartKey].images.splice(idx,1);
+    // Remove style entirely if no images left
+    if(cart[cartKey].images.length===0)delete cart[cartKey];
+    saveCart();updateCartBadge();renderRenameStudio();
+    // Re-hydrate since indices changed
+    hydrateRenameImages();
+}
+function removeDuplicates(){
+    let removed=0;
+    for(const k of Object.keys(cart)){
+        const item=cart[k];
+        const seen=new Set();const keep=[];
+        for(const img of item.images){
+            const key=img.path||img.filename;
+            if(seen.has(key)){removed++;}
+            else{seen.add(key);keep.push(img);}
+        }
+        item.images=keep;
+        if(item.images.length===0)delete cart[k];
+    }
+    saveCart();updateCartBadge();renderRenameStudio();
+    hydrateRenameImages();
+    return removed;
+}
+function updateRsStatus(){
+    let total=0,renamed=0;Object.values(cart).forEach(c=>{c.images.forEach(i=>{total++;if(i.customName)renamed++;});});
+    document.getElementById('rsStatus').textContent=renamed+'/'+total+' renamed';
 }
 function addRsMsg(role,html){
     const msgs=document.getElementById('rsMsgs');
@@ -1041,6 +1073,15 @@ function addRsMsg(role,html){
 async function sendRsAI(){
     const inp=document.getElementById('rsInput');const msg=inp.value.trim();if(!msg)return;
     inp.value='';addRsMsg('user',esc(msg));
+    
+    // Check for duplicate removal command
+    const lower=msg.toLowerCase();
+    if(lower.includes('duplicate')||lower.includes('dedup')||lower.includes('remove dup')){
+        const count=removeDuplicates();
+        addRsMsg('bot','✅ Removed <b>'+count+'</b> duplicate image'+(count!==1?'s':'')+'. '+Object.keys(cart).length+' styles remaining.');
+        return;
+    }
+    
     addRsMsg('bot','<div class="ai-typing">Starting analysis...</div>');
     await rsAnalyzeAndRename(msg);
 }
