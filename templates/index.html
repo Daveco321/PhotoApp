@@ -348,6 +348,7 @@ let currentBrowseBrand='';
 function searchBrand(f){
     const b=photoIndex[f];if(!b)return;
     currentBrowseBrand=b.info?.full||f;
+    currentFilter='all';document.querySelectorAll('.filter-tab').forEach(t=>t.classList.toggle('active',t.dataset.filter==='all'));
     executeSearch(b.info?.full||f);
 }
 function showShareBanner(){const b=document.getElementById('shareBanner');b.style.display='';b.innerHTML='<div class="share-banner"><div class="share-banner-text">📸 Shared collection — '+shareStyles.length+' style(s)</div><button class="share-banner-btn" onclick="downloadAllShared()">↓ Download All as ZIP</button></div>';}
@@ -464,9 +465,9 @@ async function openStyle(bf,sc){
         }
     }catch(e){c.innerHTML='<div class="empty-state"><div class="empty-text">Failed to load images.</div></div>';}
 }
-function imgClick(idx){if(_clickTimer){clearTimeout(_clickTimer);_clickTimer=null;return;}
+function imgClick(idx){if(shareMode){openLightbox(idx);return;}if(_clickTimer){clearTimeout(_clickTimer);_clickTimer=null;return;}
 _clickTimer=setTimeout(()=>{_clickTimer=null;toggleImgSelect(idx);},250);}
-function imgDblClick(idx){if(_clickTimer){clearTimeout(_clickTimer);_clickTimer=null;}openLightbox(idx);}
+function imgDblClick(idx){if(shareMode)return;if(_clickTimer){clearTimeout(_clickTimer);_clickTimer=null;}openLightbox(idx);}
 function closeExpanded(){document.getElementById('expandedView').classList.remove('open');document.body.style.overflow='';}
 function toggleImgSelect(idx){expandedImgs[idx].selected=!expandedImgs[idx].selected;const card=document.getElementById('eic'+idx),chk=document.getElementById('eick'+idx);
 if(expandedImgs[idx].selected){card.classList.add('selected');chk.classList.add('checked');chk.textContent='✓';}else{card.classList.remove('selected');chk.classList.remove('checked');chk.textContent='';}}
@@ -543,12 +544,22 @@ function generateShareLink(){
 async function downloadAllShared(){
     if(!currentResults.length)return;
     const btn=document.querySelector('.share-banner-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Preparing...';}
-    // Fetch all style images for shared styles
     const items=[];
     for(const r of currentResults){
         try{const resp=await fetch(API+'/api/images/'+encodeURIComponent(r.brand_folder)+'/'+encodeURIComponent(r.style_code));const d=await resp.json();
-            const paths=[];['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(img=>paths.push(img.path));});
-            if(paths.length)items.push({style_code:r.style_code,brand:r.brand_info?.full||r.brand_folder,paths});}catch(e){}
+            const paths=[];const urls={};const base64s={};
+            ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(img=>paths.push(img.path));});
+            // If no Dropbox images, try S3/override as fallback
+            if(!paths.length){
+                const ovImg=getOverrideImage(r.style_code);
+                if(ovImg){const p='override://'+r.style_code;paths.push(p);base64s[p]=ovImg;}
+                else{
+                    const ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;
+                    const s3url=S3O+'/'+r.style_code+'.jpg';
+                    const p='s3://'+r.style_code;paths.push(p);urls[p]=s3url;
+                }
+            }
+            if(paths.length)items.push({style_code:r.style_code,brand:r.brand_info?.full||r.brand_folder,paths,urls,base64:base64s});}catch(e){}
     }
     if(!items.length){toast('No images to download');if(btn){btn.disabled=false;btn.textContent='↓ Download All as ZIP';}return;}
     try{const r=await fetch(API+'/api/download-zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
