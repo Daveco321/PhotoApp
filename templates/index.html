@@ -11,7 +11,6 @@
             --purple-dark: #5a6fd6;
             --violet: #764ba2;
             --glass: rgba(255, 255, 255, 0.95);
-            --glass-hover: rgba(255, 255, 255, 1);
             --text-dark: #1f2937;
             --text-mid: #4b5563;
             --text-light: #6b7280;
@@ -31,22 +30,19 @@
         }
         .header {
             padding: 20px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
             background: rgba(255,255,255,0.12);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(255,255,255,0.15);
-            position: sticky;
-            top: 0;
-            z-index: 100;
+            position: sticky; top: 0; z-index: 100;
         }
         .header-left { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+        .header-left:hover .header-logo { transform: scale(1.05); }
         .header-logo {
             width: 40px; height: 40px; background: white; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
             font-size: 18px; font-weight: 800; color: var(--purple);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 0.2s;
         }
         .header-title { font-size: 22px; font-weight: 700; color: white; }
         .header-subtitle {
@@ -68,10 +64,7 @@
             background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
             color: rgba(255,255,255,0.7);
         }
-        .status-pill.ready {
-            border-color: rgba(16,185,129,0.4); color: #6ee7b7;
-            background: rgba(16,185,129,0.12);
-        }
+        .status-pill.ready { border-color: rgba(16,185,129,0.4); color: #6ee7b7; background: rgba(16,185,129,0.12); }
         .search-area { padding: 28px 32px 20px; }
         .search-container { position: relative; max-width: 700px; margin: 0 auto; }
         .search-icon {
@@ -85,10 +78,7 @@
             transition: all 0.25s; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
         .search-input::placeholder { color: var(--text-muted); font-weight: 400; }
-        .search-input:focus {
-            border-color: var(--purple);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 0 0 4px rgba(102,126,234,0.15);
-        }
+        .search-input:focus { border-color: var(--purple); box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 0 0 4px rgba(102,126,234,0.15); }
         .search-hint {
             text-align: center; margin-top: 10px; font-size: 12px;
             color: rgba(255,255,255,0.55); font-weight: 400;
@@ -100,37 +90,23 @@
         .stats-bar { display: flex; justify-content: center; gap: 40px; padding: 0 32px 20px; }
         .stat-item { text-align: center; }
         .stat-value { font-size: 28px; font-weight: 800; color: white; }
-        .stat-label {
-            font-size: 11px; color: rgba(255,255,255,0.55); text-transform: uppercase;
-            letter-spacing: 1.5px; margin-top: 2px; font-weight: 500;
-        }
+        .stat-label { font-size: 11px; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; font-weight: 500; }
         .main { padding: 0 32px 60px; max-width: 1500px; margin: 0 auto; }
-        .section-title {
-            font-size: 16px; font-weight: 700; color: white; margin-bottom: 14px;
-            display: flex; align-items: center; gap: 8px;
-        }
+        .section-title { font-size: 16px; font-weight: 700; color: white; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
         .section-title .count { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 400; }
-        .brands-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px; margin-bottom: 32px;
-        }
+        .brands-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 32px; }
         .brand-card {
             background: var(--glass); border: 1px solid transparent; border-radius: var(--radius);
             padding: 20px 16px; cursor: pointer; transition: all 0.2s;
             display: flex; flex-direction: column; align-items: center; gap: 10px;
             text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
-        .brand-card:hover {
-            transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25);
-            border-color: var(--purple);
-        }
+        .brand-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25); border-color: var(--purple); }
         .brand-logo { width: 100%; height: 45px; object-fit: contain; }
         .brand-card-name { font-weight: 700; font-size: 13px; color: var(--text-dark); }
         .brand-card-stats { font-size: 11px; color: var(--text-light); }
         .brand-card-stats b { color: var(--purple); }
-        .results-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
-        }
+        .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
         .results-title { font-size: 16px; font-weight: 700; color: white; }
         .results-count { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
         .filter-tabs { display: flex; gap: 6px; }
@@ -142,32 +118,22 @@
         }
         .filter-tab:hover { background: rgba(255,255,255,0.18); }
         .filter-tab.active { background: white; color: var(--purple); border-color: white; }
-        .styles-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px;
-        }
+        .styles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
         .style-card {
             background: var(--glass); border: 1px solid transparent; border-radius: var(--radius);
-            overflow: hidden; cursor: pointer; transition: all 0.25s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden; cursor: pointer; transition: all 0.25s; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
-        .style-card:hover {
-            transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25);
-            border-color: var(--purple);
-        }
+        .style-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25); border-color: var(--purple); }
         .style-card-thumb {
             width: 100%; aspect-ratio: 1; background: #f3f4f6;
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden; position: relative;
+            display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
         }
-        .style-card-thumb img {
-            width: 100%; height: 100%; object-fit: contain; transition: transform 0.3s;
-        }
+        .style-card-thumb img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.3s; }
         .style-card:hover .style-card-thumb img { transform: scale(1.05); }
         .style-card-thumb .placeholder { font-size: 18px; color: var(--text-muted); font-weight: 700; }
         .style-card-thumb .brand-tag {
             position: absolute; top: 8px; left: 8px; background: rgba(31,41,55,0.85);
-            color: white; padding: 3px 9px; border-radius: 6px; font-size: 10px;
-            font-weight: 700; backdrop-filter: blur(4px);
+            color: white; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 700; backdrop-filter: blur(4px);
         }
         .style-card-thumb .type-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
         .type-badge { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -176,15 +142,10 @@
         .style-card-info { padding: 12px 14px 14px; }
         .style-card-code { font-size: 14px; font-weight: 700; color: var(--text-dark); }
         .style-card-meta { font-size: 11px; color: var(--text-light); margin-top: 3px; }
-        .style-expanded {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(16px); z-index: 500; overflow-y: auto; display: none;
-        }
+        .style-expanded { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(16px); z-index: 500; overflow-y: auto; display: none; }
         .style-expanded.open { display: block; }
         .expanded-inner { max-width: 1300px; margin: 0 auto; padding: 30px 32px 60px; }
-        .expanded-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
-        }
+        .expanded-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
         .expanded-title { font-size: 28px; font-weight: 800; color: white; }
         .expanded-title span { color: #c4b5fd; }
         .expanded-brand { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 2px; }
@@ -206,82 +167,40 @@
         .expanded-section-title.model-title { color: #f9a8d4; }
         .expanded-section-title.inv-title .dot { background: var(--success); }
         .expanded-section-title.inv-title { color: #6ee7b7; }
-        .expanded-images {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
-        }
+        .expanded-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
         .expanded-img-card {
             background: var(--glass); border: 1px solid transparent; border-radius: 12px;
-            overflow: hidden; cursor: pointer; transition: all 0.2s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-        .expanded-img-card:hover {
-            transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102,126,234,0.3);
-            border-color: var(--purple);
-        }
+        .expanded-img-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102,126,234,0.3); border-color: var(--purple); }
         .expanded-img-card img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f9fafb; }
-        .expanded-img-label {
-            padding: 8px 10px; font-size: 11px; color: var(--text-light);
-            font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-        }
-        .lightbox {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            z-index: 1000; display: none; align-items: center; justify-content: center;
-        }
+        .expanded-img-label { padding: 8px 10px; font-size: 11px; color: var(--text-light); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; display: none; align-items: center; justify-content: center; }
         .lightbox.open { display: flex; }
         .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 4px; }
-        .lightbox-close {
-            position: absolute; top: 20px; right: 24px; width: 40px; height: 40px;
-            border-radius: 50%; background: rgba(255,255,255,0.1); border: none;
-            color: white; font-size: 22px; cursor: pointer; display: flex;
-            align-items: center; justify-content: center;
-        }
-        .lightbox-nav {
-            position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px;
-            border-radius: 50%; background: rgba(255,255,255,0.1); border: none;
-            color: white; font-size: 24px; cursor: pointer; display: flex;
-            align-items: center; justify-content: center; transition: background 0.2s;
-        }
+        .lightbox-close { position: absolute; top: 20px; right: 24px; width: 40px; height: 40px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: white; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
         .lightbox-nav:hover { background: rgba(255,255,255,0.2); }
         .lightbox-nav.prev { left: 20px; }
         .lightbox-nav.next { right: 20px; }
-        .lightbox-label {
-            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
-            font-size: 13px; color: rgba(255,255,255,0.6); background: rgba(0,0,0,0.5);
-            padding: 6px 16px; border-radius: 20px;
-        }
-        .lightbox-download {
-            position: absolute; top: 20px; right: 76px; padding: 8px 16px;
-            border-radius: 8px; background: var(--purple); color: white;
-            font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
-        }
+        .lightbox-label { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); font-size: 13px; color: rgba(255,255,255,0.6); background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 20px; }
+        .lightbox-download { position: absolute; top: 20px; right: 76px; padding: 8px 16px; border-radius: 8px; background: var(--purple); color: white; font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
         .loading-state { text-align: center; padding: 80px 20px; }
-        .loading-spinner {
-            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2);
-            border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;
-            margin: 0 auto 16px;
-        }
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
         .loading-text { color: rgba(255,255,255,0.6); font-size: 14px; }
         .empty-state { text-align: center; padding: 60px 20px; }
         .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
         .empty-text { color: rgba(255,255,255,0.5); font-size: 15px; }
-        .toast {
-            position: fixed; bottom: 20px; right: 20px; padding: 14px 22px;
-            background: var(--glass); color: var(--text-dark); border-radius: 12px;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 2000;
-            animation: slideUp 0.3s ease; font-size: 13px; font-weight: 600;
-        }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 14px 22px; background: var(--glass); color: var(--text-dark); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 2000; animation: slideUp 0.3s ease; font-size: 13px; font-weight: 600; }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .converted-notice { text-align: center; margin-top: 6px; font-size: 12px; color: #6ee7b7; font-weight: 500; display: none; }
         @media (max-width: 768px) {
-            .header { padding: 14px 16px; }
-            .search-area { padding: 16px 16px 12px; }
+            .header { padding: 14px 16px; } .search-area { padding: 16px 16px 12px; }
             .main { padding: 0 16px 40px; }
             .brands-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
             .styles-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-            .expanded-inner { padding: 16px; }
-            .expanded-title { font-size: 22px; }
-            .stats-bar { gap: 24px; }
-            .stat-value { font-size: 22px; }
-            .header-title { font-size: 18px; }
+            .expanded-inner { padding: 16px; } .expanded-title { font-size: 22px; }
+            .stats-bar { gap: 24px; } .stat-value { font-size: 22px; } .header-title { font-size: 18px; }
         }
     </style>
 </head>
@@ -305,10 +224,11 @@
         <div class="search-container">
             <span class="search-icon">⌕</span>
             <input type="text" class="search-input" id="searchInput"
-                   placeholder="Search by brand, style # or paste a list... (e.g. NA 201, BE 001, DKNY)"
+                   placeholder="Search by brand, style #, full SKU, or paste a list..."
                    autocomplete="off" spellcheck="false">
         </div>
-        <div class="search-hint">Brand name · Style number · <kbd>BE 001</kbd> · Comma-separated list · Just numbers like <kbd>201, 205</kbd></div>
+        <div class="search-hint">Brand name · <kbd>201</kbd> · <kbd>NA 201</kbd> · <kbd>AMNASU201SLS</kbd> · Paste a list of SKUs or numbers</div>
+        <div class="converted-notice" id="convertedNotice"></div>
     </div>
     <div class="stats-bar" id="statsBar" style="display:none;">
         <div class="stat-item"><div class="stat-value" id="statBrands">0</div><div class="stat-label">Brands</div></div>
@@ -326,10 +246,7 @@
         </div>
         <div id="resultsSection" style="display:none;">
             <div class="results-header">
-                <div>
-                    <div class="results-title" id="resultsTitle">Results</div>
-                    <div class="results-count" id="resultsCount"></div>
-                </div>
+                <div><div class="results-title" id="resultsTitle">Results</div><div class="results-count" id="resultsCount"></div></div>
                 <div class="filter-tabs">
                     <button class="filter-tab active" data-filter="all" onclick="setFilter('all')">All</button>
                     <button class="filter-tab" data-filter="ghost" onclick="setFilter('ghost')">Ghost</button>
@@ -346,10 +263,7 @@
     <div class="style-expanded" id="expandedView">
         <div class="expanded-inner">
             <div class="expanded-header">
-                <div>
-                    <div class="expanded-title" id="expandedTitle"></div>
-                    <div class="expanded-brand" id="expandedBrand"></div>
-                </div>
+                <div><div class="expanded-title" id="expandedTitle"></div><div class="expanded-brand" id="expandedBrand"></div></div>
                 <button class="expanded-close" onclick="closeExpanded()">✕</button>
             </div>
             <div id="expandedContent"></div>
@@ -361,7 +275,7 @@
         <img id="lightboxImg" src="" onclick="event.stopPropagation()">
         <button class="lightbox-nav next" onclick="event.stopPropagation(); navLightbox(1)">›</button>
         <div class="lightbox-label" id="lightboxLabel"></div>
-        <button class="lightbox-download" id="lightboxDownload" onclick="event.stopPropagation(); downloadLightboxImage()">↓ Download</button>
+        <button class="lightbox-download" onclick="event.stopPropagation(); downloadLightboxImage()">↓ Download</button>
     </div>
     <script>
         const API_BASE = window.location.origin;
@@ -372,12 +286,53 @@
             'LUCKY': 'LUCKY+BRAND', 'BEN': 'BEN+SHERMAN', 'BEENE': 'GEOFFREY+BEENE',
             'NICOLE': 'NICOLE+MILLER', 'TAYION': 'TAYON', 'VD': 'Von+Dutch', 'KL': 'KARL+LAGERFELD',
         };
+        const KNOWN_PREFIXES = new Set(['NA','DK','EB','RB','VC','BE','US','CH','LB','JN','GB','NM','SH','TA','MS','VD','KL','CK','NW']);
+
         let photoIndex = {}, currentFilter = 'all', currentResults = [];
         let lightboxImages = [], lightboxIdx = 0, searchTimeout = null, pollInterval = null;
 
+        // ── SKU Parser ──
+        function parseVersaSku(term) {
+            const base = term.split('-')[0].trim().toUpperCase();
+            if (base.length < 9) return null;
+            if (!/^\d{3}$/.test(base.substring(6, 9))) return null;
+            const brandPrefix = base.substring(2, 4);
+            if (!KNOWN_PREFIXES.has(brandPrefix)) return null;
+            return brandPrefix + '_' + base.substring(6, 9);
+        }
+
+        function formatSearchInput(raw) {
+            // Split by newlines, tabs, commas, multiple spaces
+            const parts = raw.split(/[,\n\t]+|\s{2,}/).map(s => s.trim()).filter(Boolean);
+            const converted = [];
+            let didConvert = false;
+            parts.forEach(p => {
+                const sku = parseVersaSku(p);
+                if (sku) { converted.push(sku); didConvert = true; }
+                else { converted.push(p.toUpperCase()); }
+            });
+            const notice = document.getElementById('convertedNotice');
+            if (didConvert) {
+                notice.textContent = '✓ SKUs converted to style codes';
+                notice.style.display = '';
+                setTimeout(() => { notice.style.display = 'none'; }, 3000);
+            } else { notice.style.display = 'none'; }
+            return converted.join(', ');
+        }
+
+        // ── Init ──
         document.addEventListener('DOMContentLoaded', () => {
             loadIndex();
-            document.getElementById('searchInput').addEventListener('input', onSearchInput);
+            const input = document.getElementById('searchInput');
+            input.addEventListener('input', onSearchInput);
+            input.addEventListener('paste', e => {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text');
+                const formatted = formatSearchInput(pasted);
+                input.value = formatted;
+                if (formatted.trim()) executeSearch(formatted);
+                else renderHome();
+            });
             document.addEventListener('keydown', e => {
                 if (e.key === 'Escape') {
                     if (document.getElementById('lightbox').classList.contains('open')) closeLightbox();
@@ -390,17 +345,30 @@
             });
         });
 
+        // ── Data ──
         async function loadIndex() {
             try {
                 const resp = await fetch(API_BASE + '/api/index');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
                 const data = await resp.json();
                 if (data.scan_status && data.scan_status.scanning) { showLoading(data.scan_status.progress || 'Scanning Dropbox...'); startPolling(); return; }
                 if (data.brands && Object.keys(data.brands).length > 0) {
                     photoIndex = data.brands;
                     if (data.s3_folder_map) Object.assign(S3_FOLDER_MAP, data.s3_folder_map);
                     renderHome(); updateStatus('ready');
-                } else { showLoading('No photos indexed yet. Click Rescan to start.'); updateStatus('empty'); }
-            } catch (e) { console.error('Failed to load index:', e); showLoading('Failed to connect to API. Retrying...'); setTimeout(loadIndex, 5000); }
+                } else if (data.scan_status && data.scan_status.last_scan) {
+                    // Scan completed but index is empty on this request (race condition) — retry
+                    showLoading('Loading index...');
+                    setTimeout(loadIndex, 2000);
+                } else {
+                    showLoading('No photos indexed yet. Click Rescan to start.');
+                    updateStatus('empty');
+                }
+            } catch (e) {
+                console.error('Failed to load index:', e);
+                showLoading('Connecting to server...');
+                setTimeout(loadIndex, 3000);
+            }
         }
 
         function startPolling() {
@@ -418,7 +386,7 @@
         async function triggerScan() {
             document.getElementById('scanBtn').classList.add('scanning');
             try { await fetch(API_BASE + '/api/scan', { method: 'POST' }); showLoading('Scan started...'); updateStatus('scanning'); startPolling(); }
-            catch (e) { console.error('Scan trigger failed:', e); toast('Failed to start scan'); }
+            catch (e) { toast('Failed to start scan'); }
         }
 
         function showLoading(text) {
@@ -444,6 +412,7 @@
             document.getElementById('brandsSection').style.display = '';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('convertedNotice').style.display = 'none';
             const brands = Object.entries(photoIndex).sort((a,b) => (a[1].info?.full||a[0]).localeCompare(b[1].info?.full||b[0]));
             let totalStyles = 0, totalImages = 0;
             brands.forEach(([,b]) => { totalStyles += b.style_count; totalImages += b.image_count; });
@@ -461,22 +430,19 @@
             }).join('');
         }
 
+        function goHome() { document.getElementById('searchInput').value = ''; renderHome(); }
+
         function searchBrand(folder) {
             const brand = photoIndex[folder]; if (!brand) return;
             document.getElementById('searchInput').value = brand.info?.full || folder;
             executeSearch(brand.info?.full || folder);
         }
 
-        function goHome() {
-            document.getElementById('searchInput').value = '';
-            renderHome();
-        }
-
         function onSearchInput(e) {
             clearTimeout(searchTimeout);
             const q = e.target.value.trim();
             if (!q) { renderHome(); return; }
-            searchTimeout = setTimeout(() => executeSearch(q), 200);
+            searchTimeout = setTimeout(() => executeSearch(q), 300);
         }
 
         async function executeSearch(query) {
@@ -502,8 +468,7 @@
             if (currentFilter === 'ghost') filtered = results.filter(r => r.ghost_count > 0);
             else if (currentFilter === 'model') filtered = results.filter(r => r.model_count > 0);
             grid.innerHTML = filtered.map(r => {
-                const brandName = r.brand_info?.full || r.brand_folder;
-                const abbr = r.brand_info?.abbr || '';
+                const brandName = r.brand_info?.full || r.brand_folder, abbr = r.brand_info?.abbr || '';
                 const s3Folder = S3_FOLDER_MAP[abbr] || abbr;
                 const thumbUrl = S3_OVERRIDE_URL + '/' + r.style_code + '.jpg';
                 const fallbackUrl = S3_INVENTORY_URL + '/' + s3Folder + '/' + r.style_code + '.jpg';
@@ -518,17 +483,11 @@
             }).join('');
         }
 
-        function setFilter(f) {
-            currentFilter = f;
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f));
-            renderStyleCards(currentResults);
-        }
+        function setFilter(f) { currentFilter = f; document.querySelectorAll('.filter-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === f)); renderStyleCards(currentResults); }
 
         async function openStyle(brandFolder, styleCode) {
-            const view = document.getElementById('expandedView');
-            const content = document.getElementById('expandedContent');
-            const brand = photoIndex[brandFolder];
-            const brandName = brand?.info?.full || brandFolder;
+            const view = document.getElementById('expandedView'), content = document.getElementById('expandedContent');
+            const brand = photoIndex[brandFolder], brandName = brand?.info?.full || brandFolder;
             document.getElementById('expandedTitle').innerHTML = '<span>' + esc(styleCode) + '</span>';
             document.getElementById('expandedBrand').textContent = brandName;
             content.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading images from Dropbox...</div></div>';
@@ -551,46 +510,26 @@
                 });
                 const abbr = brand?.info?.abbr || '', s3Folder = S3_FOLDER_MAP[abbr] || abbr;
                 html += '<div class="expanded-section" id="inventorySection"><div class="expanded-section-title inv-title"><div class="dot"></div>Inventory Image</div><div class="expanded-images" id="inventoryImages"></div></div>';
-                if (!allImages.length) html = '<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">No professional photos found for this style in Dropbox.</div></div>' + html;
+                if (!allImages.length) html = '<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">No professional photos found in Dropbox.</div></div>' + html;
                 content.innerHTML = html; lightboxImages = allImages;
-                const invContainer = document.getElementById('inventoryImages');
-                if (invContainer) {
-                    const invUrls = [S3_OVERRIDE_URL + '/' + styleCode + '.jpg', S3_INVENTORY_URL + '/' + s3Folder + '/' + styleCode + '.jpg'];
-                    let foundInv = false;
-                    for (const url of invUrls) {
-                        const loaded = await new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img.naturalWidth > 1); img.onerror = () => resolve(false); img.src = url; });
-                        if (loaded) {
-                            const idx = lightboxImages.length;
-                            lightboxImages.push({ url, label: 'Inventory', filename: styleCode + '.jpg' });
-                            invContainer.innerHTML += '<div class="expanded-img-card" onclick="openLightbox(' + idx + ')"><img src="' + esc(url) + '" alt="Inventory image"><div class="expanded-img-label">Standard</div></div>';
-                            foundInv = true; break;
-                        }
+                const invC = document.getElementById('inventoryImages');
+                if (invC) {
+                    const urls = [S3_OVERRIDE_URL + '/' + styleCode + '.jpg', S3_INVENTORY_URL + '/' + s3Folder + '/' + styleCode + '.jpg'];
+                    let found = false;
+                    for (const url of urls) {
+                        const ok = await new Promise(r => { const i = new Image(); i.onload = () => r(i.naturalWidth > 1); i.onerror = () => r(false); i.src = url; });
+                        if (ok) { const idx = lightboxImages.length; lightboxImages.push({ url, label: 'Inventory', filename: styleCode + '.jpg' }); invC.innerHTML += '<div class="expanded-img-card" onclick="openLightbox(' + idx + ')"><img src="' + esc(url) + '" alt="Inventory"><div class="expanded-img-label">Standard</div></div>'; found = true; break; }
                     }
-                    if (!foundInv) document.getElementById('inventorySection').style.display = 'none';
+                    if (!found) document.getElementById('inventorySection').style.display = 'none';
                 }
-            } catch (e) { console.error('Failed to load style images:', e); content.innerHTML = '<div class="empty-state"><div class="empty-text">Failed to load images. Try again.</div></div>'; }
+            } catch (e) { content.innerHTML = '<div class="empty-state"><div class="empty-text">Failed to load images.</div></div>'; }
         }
 
         function closeExpanded() { document.getElementById('expandedView').classList.remove('open'); document.body.style.overflow = ''; }
-
-        function openLightbox(idx) {
-            lightboxIdx = idx; const img = lightboxImages[idx]; if (!img) return;
-            document.getElementById('lightboxImg').src = img.url;
-            document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (idx+1) + ' of ' + lightboxImages.length;
-            document.getElementById('lightbox').classList.add('open');
-        }
+        function openLightbox(idx) { lightboxIdx = idx; const img = lightboxImages[idx]; if (!img) return; document.getElementById('lightboxImg').src = img.url; document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (idx+1) + ' of ' + lightboxImages.length; document.getElementById('lightbox').classList.add('open'); }
         function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
-        function navLightbox(dir) {
-            lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length;
-            const img = lightboxImages[lightboxIdx];
-            document.getElementById('lightboxImg').src = img.url;
-            document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (lightboxIdx+1) + ' of ' + lightboxImages.length;
-        }
-        function downloadLightboxImage() {
-            const img = lightboxImages[lightboxIdx]; if (!img) return;
-            const a = document.createElement('a'); a.href = img.url; a.download = img.filename || 'image.jpg';
-            a.target = '_blank'; document.body.appendChild(a); a.click(); a.remove();
-        }
+        function navLightbox(dir) { lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length; const img = lightboxImages[lightboxIdx]; document.getElementById('lightboxImg').src = img.url; document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (lightboxIdx+1) + ' of ' + lightboxImages.length; }
+        function downloadLightboxImage() { const img = lightboxImages[lightboxIdx]; if (!img) return; const a = document.createElement('a'); a.href = img.url; a.download = img.filename || 'image.jpg'; a.target = '_blank'; document.body.appendChild(a); a.click(); a.remove(); }
         function esc(str) { if (!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"&#39;"); }
         function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
     </script>
