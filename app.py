@@ -95,6 +95,12 @@ scan_lock = threading.Lock()
 
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.webp', '.bmp'}
 
+# Folders inside Ecom_Photos that are NOT brands — skip during scan
+IGNORE_FOLDERS = {
+    'updated photos', 'overstock pictures', 'belk dropship photos',
+    'old photos', 'archive', 'temp', 'test',
+}
+
 # ─── Dropbox Client ──────────────────────────────────────────────────────────
 def get_dbx():
     """Create a Dropbox client, preferring refresh token for auto-renewal."""
@@ -160,6 +166,10 @@ def parse_image_entry(path_lower, path_display):
     
     brand_info = resolve_brand(brand_folder)
     
+    # Skip non-brand folders
+    if brand_folder.lower() in IGNORE_FOLDERS:
+        return None
+    
     # Determine photo type (ghost/model)
     photo_type = 'other'
     middle_parts = [p.upper() for p in parts[1:-1]]
@@ -198,22 +208,31 @@ def parse_image_entry(path_lower, path_display):
     
     # Normalize style code: ensure underscore separator
     style_code = style_code.replace('-', '_').upper()
-    # Ensure consistent format: PREFIX_PADDED_NUMBER
+    # Ensure consistent format: PREFIX_PADDED_NUMBER (pad to 3 digits like inventory index)
     sc_match = re.match(r'^([A-Z]{2})_(\d+(?:_\d+)?)$', style_code)
     if sc_match:
         prefix = sc_match.group(1)
         num_part = sc_match.group(2)
         # Only pad simple numbers (not compound like 470_001)
         if '_' not in num_part:
-            num_part = num_part.lstrip('0') or '0'  # normalize leading zeros for matching
+            num_part = num_part.zfill(3)  # pad to 3 digits: 1→001, 22→022, 140→140
         style_code = f"{prefix}_{num_part}"
     
     # Determine angle from filename
     angle = 'unknown'
-    for tag in ['FRONT3', 'FRONT2', 'FRONT', 'BACK', 'SIDE', 'DETAIL', 'CLOSE', 'FULL', 'FLAT']:
-        if tag in name_no_ext:
+    name_upper = name_no_ext.upper()
+    for tag in ['FRONT3', 'FRONT2', 'FRONT', 'BACK2', 'BACK', 'SIDE2', 'SIDE',
+                'DETAIL2', 'DETAIL', 'CLOSEUP', 'CLOSE', 'CLOSE_UP', 'FULL',
+                'FLAT', 'COLLAR', 'CUFF', 'POCKET', 'INTERIOR', 'LABEL',
+                'HANG', 'FOLD', 'LIFESTYLE', 'ANGLE', 'TOP', 'BOTTOM']:
+        if tag in name_upper:
             angle = tag.lower()
             break
+    # If still unknown, try to detect numbered variants (e.g., _01, _02 at end)
+    if angle == 'unknown':
+        num_suffix = re.search(r'_(\d{1,2})$', name_no_ext)
+        if num_suffix:
+            angle = f"view {num_suffix.group(1)}"
     
     return {
         'brand_folder': brand_folder,
