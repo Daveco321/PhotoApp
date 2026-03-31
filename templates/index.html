@@ -4,683 +4,293 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Versa Photo Studio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-deep: #08080A;
-            --bg-card: #111114;
-            --bg-card-hover: #1A1A1E;
-            --bg-surface: #0E0E11;
-            --border: #1F1F24;
-            --border-hover: #2E2E35;
-            --text-primary: #F0EDE8;
-            --text-secondary: #8A8690;
-            --text-muted: #5A5660;
-            --accent: #C9A84C;
-            --accent-dim: #A08530;
-            --accent-glow: rgba(201, 168, 76, 0.15);
-            --ghost-color: #6B8AFF;
-            --model-color: #FF6B8A;
-            --inventory-color: #6BFFB8;
-            --font-display: 'Cormorant Garamond', serif;
-            --font-body: 'Outfit', sans-serif;
-            --radius: 10px;
-            --radius-lg: 14px;
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --purple: #667eea;
+            --purple-dark: #5a6fd6;
+            --violet: #764ba2;
+            --glass: rgba(255, 255, 255, 0.95);
+            --glass-hover: rgba(255, 255, 255, 1);
+            --text-dark: #1f2937;
+            --text-mid: #4b5563;
+            --text-light: #6b7280;
+            --text-muted: #9ca3af;
+            --border: #e5e7eb;
+            --ghost-color: #667eea;
+            --model-color: #e44d8a;
+            --success: #10b981;
+            --radius: 16px;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
-            font-family: var(--font-body);
-            background: var(--bg-deep);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--gradient);
             min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
+            color: var(--text-dark);
         }
-
-        /* ── Header ── */
         .header {
-            padding: 28px 40px 20px;
+            padding: 20px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(8, 8, 10, 0.92);
-            backdrop-filter: blur(20px);
         }
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+        .header-left { display: flex; align-items: center; gap: 14px; }
         .header-logo {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--bg-deep);
-            font-family: var(--font-display);
+            width: 40px; height: 40px; background: white; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; font-weight: 800; color: var(--purple);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
-        .header-title {
-            font-family: var(--font-display);
-            font-size: 24px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-        }
-        .header-title span {
-            color: var(--accent);
-        }
+        .header-title { font-size: 22px; font-weight: 700; color: white; }
         .header-subtitle {
-            font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 400;
-            margin-top: 1px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
+            font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 500;
+            letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px;
         }
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
         .scan-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: var(--radius);
-            font-family: var(--font-body);
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+            color: white; padding: 8px 16px; border-radius: 10px; font-size: 13px;
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px; font-family: inherit;
         }
-        .scan-btn:hover {
-            border-color: var(--accent-dim);
-            color: var(--accent);
-        }
-        .scan-btn.scanning {
-            color: var(--accent);
-            border-color: var(--accent-dim);
-        }
-        .scan-btn.scanning .scan-icon {
-            animation: spin 1.5s linear infinite;
-        }
+        .scan-btn:hover { background: rgba(255,255,255,0.25); }
+        .scan-btn.scanning .scan-icon { animation: spin 1.5s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-
         .status-pill {
-            font-size: 11px;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: 500;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
+            font-size: 11px; padding: 5px 12px; border-radius: 20px; font-weight: 600;
+            background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.7);
         }
         .status-pill.ready {
-            border-color: #1a3a20;
-            color: #6BFFB8;
-            background: rgba(107, 255, 184, 0.06);
+            border-color: rgba(16,185,129,0.4); color: #6ee7b7;
+            background: rgba(16,185,129,0.12);
         }
-
-        /* ── Search ── */
-        .search-area {
-            padding: 32px 40px 24px;
-        }
-        .search-container {
-            position: relative;
-            max-width: 800px;
-            margin: 0 auto;
-        }
+        .search-area { padding: 28px 32px 20px; }
+        .search-container { position: relative; max-width: 700px; margin: 0 auto; }
         .search-icon {
-            position: absolute;
-            left: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: var(--text-muted);
-            pointer-events: none;
+            position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+            font-size: 18px; color: var(--text-muted); pointer-events: none;
         }
         .search-input {
-            width: 100%;
-            padding: 16px 20px 16px 48px;
-            background: var(--bg-card);
-            border: 2px solid var(--border);
-            border-radius: var(--radius-lg);
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            font-size: 16px;
-            font-weight: 400;
-            outline: none;
-            transition: all 0.25s;
+            width: 100%; padding: 15px 20px 15px 48px; background: var(--glass);
+            border: 2px solid transparent; border-radius: 14px; color: var(--text-dark);
+            font-family: inherit; font-size: 15px; font-weight: 500; outline: none;
+            transition: all 0.25s; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
-        .search-input::placeholder {
-            color: var(--text-muted);
-            font-weight: 300;
-        }
+        .search-input::placeholder { color: var(--text-muted); font-weight: 400; }
         .search-input:focus {
-            border-color: var(--accent-dim);
-            box-shadow: 0 0 0 4px var(--accent-glow);
+            border-color: var(--purple);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 0 0 4px rgba(102,126,234,0.15);
         }
         .search-hint {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 300;
+            text-align: center; margin-top: 10px; font-size: 12px;
+            color: rgba(255,255,255,0.55); font-weight: 400;
         }
         .search-hint kbd {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            padding: 1px 6px;
-            border-radius: 4px;
-            font-family: var(--font-body);
-            font-size: 11px;
+            background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 4px;
+            font-family: inherit; font-size: 11px;
         }
-
-        /* ── Stats Bar ── */
-        .stats-bar {
-            display: flex;
-            justify-content: center;
-            gap: 32px;
-            padding: 0 40px 24px;
-        }
-        .stat-item {
-            text-align: center;
-        }
-        .stat-value {
-            font-family: var(--font-display);
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--accent);
-        }
+        .stats-bar { display: flex; justify-content: center; gap: 40px; padding: 0 32px 20px; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 800; color: white; }
         .stat-label {
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            margin-top: 2px;
+            font-size: 11px; color: rgba(255,255,255,0.55); text-transform: uppercase;
+            letter-spacing: 1.5px; margin-top: 2px; font-weight: 500;
         }
-
-        /* ── Main Content ── */
-        .main {
-            padding: 0 40px 60px;
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
+        .main { padding: 0 32px 60px; max-width: 1500px; margin: 0 auto; }
         .section-title {
-            font-family: var(--font-display);
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-size: 16px; font-weight: 700; color: white; margin-bottom: 14px;
+            display: flex; align-items: center; gap: 8px;
         }
-        .section-title .count {
-            font-family: var(--font-body);
-            font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 400;
-        }
-
-        /* ── Brand Cards ── */
+        .section-title .count { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 400; }
         .brands-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 40px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px; margin-bottom: 32px;
         }
         .brand-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            text-align: center;
+            background: var(--glass); border: 1px solid transparent; border-radius: var(--radius);
+            padding: 20px 16px; cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
+            text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         .brand-card:hover {
-            border-color: var(--accent-dim);
-            background: var(--bg-card-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25);
+            border-color: var(--purple);
         }
-        .brand-card.active {
-            border-color: var(--accent);
-            background: var(--accent-glow);
-        }
-        .brand-logo {
-            width: 100%;
-            height: 50px;
-            object-fit: contain;
-            filter: brightness(0.9);
-        }
-        .brand-card-name {
-            font-weight: 600;
-            font-size: 13px;
-            color: var(--text-primary);
-        }
-        .brand-card-stats {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        .brand-card-stats b {
-            color: var(--accent);
-        }
-
-        /* ── Results Area ── */
+        .brand-logo { width: 100%; height: 45px; object-fit: contain; }
+        .brand-card-name { font-weight: 700; font-size: 13px; color: var(--text-dark); }
+        .brand-card-stats { font-size: 11px; color: var(--text-light); }
+        .brand-card-stats b { color: var(--purple); }
         .results-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
         }
-        .results-title {
-            font-family: var(--font-display);
-            font-size: 20px;
-            font-weight: 600;
-        }
-        .results-count {
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-        .filter-tabs {
-            display: flex;
-            gap: 6px;
-        }
+        .results-title { font-size: 16px; font-weight: 700; color: white; }
+        .results-count { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+        .filter-tabs { display: flex; gap: 6px; }
         .filter-tab {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            border: 1px solid var(--border);
-            background: var(--bg-card);
-            color: var(--text-secondary);
-            transition: all 0.2s;
-            font-family: var(--font-body);
+            padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7);
+            transition: all 0.2s; font-family: inherit;
         }
-        .filter-tab:hover { border-color: var(--border-hover); }
-        .filter-tab.active {
-            border-color: var(--accent-dim);
-            color: var(--accent);
-            background: var(--accent-glow);
-        }
-
-        /* ── Style Cards Grid ── */
+        .filter-tab:hover { background: rgba(255,255,255,0.18); }
+        .filter-tab.active { background: white; color: var(--purple); border-color: white; }
         .styles-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 14px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px;
         }
         .style-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.25s;
+            background: var(--glass); border: 1px solid transparent; border-radius: var(--radius);
+            overflow: hidden; cursor: pointer; transition: all 0.25s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         }
         .style-card:hover {
-            border-color: var(--accent-dim);
-            transform: translateY(-3px);
-            box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+            transform: translateY(-3px); box-shadow: 0 12px 28px rgba(102,126,234,0.25);
+            border-color: var(--purple);
         }
         .style-card-thumb {
-            width: 100%;
-            aspect-ratio: 1;
-            background: var(--bg-surface);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
+            width: 100%; aspect-ratio: 1; background: #f3f4f6;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; position: relative;
         }
         .style-card-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            transition: transform 0.3s;
+            width: 100%; height: 100%; object-fit: contain; transition: transform 0.3s;
         }
-        .style-card:hover .style-card-thumb img {
-            transform: scale(1.05);
-        }
-        .style-card-thumb .placeholder {
-            font-family: var(--font-display);
-            font-size: 22px;
-            color: var(--text-muted);
-            font-weight: 600;
-        }
+        .style-card:hover .style-card-thumb img { transform: scale(1.05); }
+        .style-card-thumb .placeholder { font-size: 18px; color: var(--text-muted); font-weight: 700; }
         .style-card-thumb .brand-tag {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: rgba(8,8,10,0.85);
-            color: var(--accent);
-            padding: 3px 10px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            backdrop-filter: blur(6px);
+            position: absolute; top: 8px; left: 8px; background: rgba(31,41,55,0.85);
+            color: white; padding: 3px 9px; border-radius: 6px; font-size: 10px;
+            font-weight: 700; backdrop-filter: blur(4px);
         }
-        .style-card-thumb .type-badges {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            display: flex;
-            gap: 4px;
-        }
-        .type-badge {
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .type-badge.ghost { background: rgba(107,138,255,0.2); color: var(--ghost-color); }
-        .type-badge.model { background: rgba(255,107,138,0.2); color: var(--model-color); }
-        .type-badge.inv   { background: rgba(107,255,184,0.2); color: var(--inventory-color); }
-
-        .style-card-info {
-            padding: 12px 14px 14px;
-        }
-        .style-card-code {
-            font-family: var(--font-body);
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-        .style-card-meta {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-
-        /* ── Expanded Style View ── */
+        .style-card-thumb .type-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+        .type-badge { padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .type-badge.ghost { background: rgba(102,126,234,0.15); color: var(--ghost-color); }
+        .type-badge.model { background: rgba(228,77,138,0.15); color: var(--model-color); }
+        .style-card-info { padding: 12px 14px 14px; }
+        .style-card-code { font-size: 14px; font-weight: 700; color: var(--text-dark); }
+        .style-card-meta { font-size: 11px; color: var(--text-light); margin-top: 3px; }
         .style-expanded {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(12px);
-            z-index: 500;
-            overflow-y: auto;
-            padding: 0;
-            display: none;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(16px); z-index: 500; overflow-y: auto; display: none;
         }
         .style-expanded.open { display: block; }
-
-        .expanded-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 30px 40px 60px;
-        }
+        .expanded-inner { max-width: 1300px; margin: 0 auto; padding: 30px 32px 60px; }
         .expanded-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 24px;
+            display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
         }
-        .expanded-title {
-            font-family: var(--font-display);
-            font-size: 32px;
-            font-weight: 700;
-        }
-        .expanded-title span { color: var(--accent); }
-        .expanded-brand {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
+        .expanded-title { font-size: 28px; font-weight: 800; color: white; }
+        .expanded-title span { color: #c4b5fd; }
+        .expanded-brand { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 2px; }
         .expanded-close {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-secondary);
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
+            width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 20px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
         }
-        .expanded-close:hover {
-            border-color: var(--accent-dim);
-            color: var(--accent);
-        }
-
-        .expanded-section {
-            margin-bottom: 28px;
-        }
+        .expanded-close:hover { background: rgba(255,255,255,0.2); }
+        .expanded-section { margin-bottom: 28px; }
         .expanded-section-title {
-            font-size: 13px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;
+            margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.7);
         }
-        .expanded-section-title .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
+        .expanded-section-title .dot { width: 8px; height: 8px; border-radius: 50%; }
         .expanded-section-title.ghost-title .dot { background: var(--ghost-color); }
-        .expanded-section-title.ghost-title { color: var(--ghost-color); }
+        .expanded-section-title.ghost-title { color: #a5b4fc; }
         .expanded-section-title.model-title .dot { background: var(--model-color); }
-        .expanded-section-title.model-title { color: var(--model-color); }
-        .expanded-section-title.inv-title .dot { background: var(--inventory-color); }
-        .expanded-section-title.inv-title { color: var(--inventory-color); }
-
+        .expanded-section-title.model-title { color: #f9a8d4; }
+        .expanded-section-title.inv-title .dot { background: var(--success); }
+        .expanded-section-title.inv-title { color: #6ee7b7; }
         .expanded-images {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;
         }
         .expanded-img-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: var(--glass); border: 1px solid transparent; border-radius: 12px;
+            overflow: hidden; cursor: pointer; transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .expanded-img-card:hover {
-            border-color: var(--accent-dim);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            transform: translateY(-2px); box-shadow: 0 8px 24px rgba(102,126,234,0.3);
+            border-color: var(--purple);
         }
-        .expanded-img-card img {
-            width: 100%;
-            aspect-ratio: 1;
-            object-fit: contain;
-            background: var(--bg-surface);
-        }
+        .expanded-img-card img { width: 100%; aspect-ratio: 1; object-fit: contain; background: #f9fafb; }
         .expanded-img-label {
-            padding: 8px 10px;
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            padding: 8px 10px; font-size: 11px; color: var(--text-light);
+            font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
         }
-
-        /* ── Lightbox ── */
         .lightbox {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 1000;
-            display: none;
-            align-items: center;
-            justify-content: center;
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 1000; display: none; align-items: center; justify-content: center;
         }
         .lightbox.open { display: flex; }
-        .lightbox img {
-            max-width: 90vw;
-            max-height: 90vh;
-            object-fit: contain;
-            border-radius: 4px;
-        }
+        .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 4px; }
         .lightbox-close {
-            position: absolute;
-            top: 20px;
-            right: 24px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            font-size: 22px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute; top: 20px; right: 24px; width: 40px; height: 40px;
+            border-radius: 50%; background: rgba(255,255,255,0.1); border: none;
+            color: white; font-size: 22px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
         }
         .lightbox-nav {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
+            position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px;
+            border-radius: 50%; background: rgba(255,255,255,0.1); border: none;
+            color: white; font-size: 24px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; transition: background 0.2s;
         }
         .lightbox-nav:hover { background: rgba(255,255,255,0.2); }
         .lightbox-nav.prev { left: 20px; }
         .lightbox-nav.next { right: 20px; }
         .lightbox-label {
-            position: absolute;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 13px;
-            color: rgba(255,255,255,0.6);
-            background: rgba(0,0,0,0.5);
-            padding: 6px 16px;
-            border-radius: 20px;
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+            font-size: 13px; color: rgba(255,255,255,0.6); background: rgba(0,0,0,0.5);
+            padding: 6px 16px; border-radius: 20px;
         }
         .lightbox-download {
-            position: absolute;
-            top: 20px;
-            right: 76px;
-            padding: 8px 16px;
-            border-radius: 8px;
-            background: var(--accent);
-            color: var(--bg-deep);
-            font-size: 13px;
-            font-weight: 600;
-            border: none;
-            cursor: pointer;
-            font-family: var(--font-body);
+            position: absolute; top: 20px; right: 76px; padding: 8px 16px;
+            border-radius: 8px; background: var(--purple); color: white;
+            font-size: 13px; font-weight: 600; border: none; cursor: pointer; font-family: inherit;
         }
-
-        /* ── Loading / Empty states ── */
-        .loading-state {
-            text-align: center;
-            padding: 80px 20px;
-        }
+        .loading-state { text-align: center; padding: 80px 20px; }
         .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+            width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;
             margin: 0 auto 16px;
         }
-        .loading-text {
-            color: var(--text-muted);
-            font-size: 14px;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-            opacity: 0.4;
-        }
-        .empty-text {
-            color: var(--text-muted);
-            font-size: 15px;
-        }
-
-        /* ── Toast ── */
+        .loading-text { color: rgba(255,255,255,0.6); font-size: 14px; }
+        .empty-state { text-align: center; padding: 60px 20px; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+        .empty-text { color: rgba(255,255,255,0.5); font-size: 15px; }
         .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: var(--bg-card);
-            border: 1px solid var(--accent-dim);
-            color: var(--text-primary);
-            padding: 12px 20px;
-            border-radius: var(--radius);
-            font-size: 13px;
-            z-index: 2000;
-            animation: slideUp 0.3s ease;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            position: fixed; bottom: 20px; right: 20px; padding: 14px 22px;
+            background: var(--glass); color: var(--text-dark); border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 2000;
+            animation: slideUp 0.3s ease; font-size: 13px; font-weight: 600;
         }
-        @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        /* ── Responsive ── */
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @media (max-width: 768px) {
-            .header { padding: 16px 20px; }
-            .search-area { padding: 20px 20px 16px; }
-            .main { padding: 0 20px 40px; }
-            .brands-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-            .styles-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-            .expanded-inner { padding: 20px; }
-            .expanded-title { font-size: 24px; }
-            .stats-bar { gap: 20px; }
+            .header { padding: 14px 16px; }
+            .search-area { padding: 16px 16px 12px; }
+            .main { padding: 0 16px 40px; }
+            .brands-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+            .styles-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+            .expanded-inner { padding: 16px; }
+            .expanded-title { font-size: 22px; }
+            .stats-bar { gap: 24px; }
             .stat-value { font-size: 22px; }
+            .header-title { font-size: 18px; }
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="header">
         <div class="header-left">
             <div class="header-logo">V</div>
             <div>
-                <div class="header-title">Versa <span>Photo Studio</span></div>
+                <div class="header-title">Versa Photo Studio</div>
                 <div class="header-subtitle">Professional Image Library</div>
             </div>
         </div>
@@ -691,8 +301,6 @@
             </button>
         </div>
     </header>
-
-    <!-- Search -->
     <div class="search-area">
         <div class="search-container">
             <span class="search-icon">⌕</span>
@@ -700,42 +308,22 @@
                    placeholder="Search by brand, style # or paste a list... (e.g. NA 201, BE 001, DKNY)"
                    autocomplete="off" spellcheck="false">
         </div>
-        <div class="search-hint">
-            Brand name • Style number • <kbd>BE 001</kbd> • Comma-separated list • Just numbers like <kbd>201, 205</kbd>
-        </div>
+        <div class="search-hint">Brand name · Style number · <kbd>BE 001</kbd> · Comma-separated list · Just numbers like <kbd>201, 205</kbd></div>
     </div>
-
-    <!-- Stats -->
     <div class="stats-bar" id="statsBar" style="display:none;">
-        <div class="stat-item">
-            <div class="stat-value" id="statBrands">0</div>
-            <div class="stat-label">Brands</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="statStyles">0</div>
-            <div class="stat-label">Styles</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="statImages">0</div>
-            <div class="stat-label">Images</div>
-        </div>
+        <div class="stat-item"><div class="stat-value" id="statBrands">0</div><div class="stat-label">Brands</div></div>
+        <div class="stat-item"><div class="stat-value" id="statStyles">0</div><div class="stat-label">Styles</div></div>
+        <div class="stat-item"><div class="stat-value" id="statImages">0</div><div class="stat-label">Images</div></div>
     </div>
-
-    <!-- Main Content -->
     <main class="main">
-        <!-- Loading State -->
         <div id="loadingState" class="loading-state">
             <div class="loading-spinner"></div>
             <div class="loading-text" id="loadingText">Scanning Dropbox for photos...</div>
         </div>
-
-        <!-- Brand Cards (home view) -->
         <div id="brandsSection" style="display:none;">
             <div class="section-title">Brands <span class="count" id="brandCountLabel"></span></div>
             <div class="brands-grid" id="brandsGrid"></div>
         </div>
-
-        <!-- Search Results -->
         <div id="resultsSection" style="display:none;">
             <div class="results-header">
                 <div>
@@ -750,15 +338,11 @@
             </div>
             <div class="styles-grid" id="stylesGrid"></div>
         </div>
-
-        <!-- Empty State -->
         <div id="emptyState" class="empty-state" style="display:none;">
             <div class="empty-icon">📷</div>
             <div class="empty-text">No photos found. Try a different search.</div>
         </div>
     </main>
-
-    <!-- Expanded Style View -->
     <div class="style-expanded" id="expandedView">
         <div class="expanded-inner">
             <div class="expanded-header">
@@ -771,8 +355,6 @@
             <div id="expandedContent"></div>
         </div>
     </div>
-
-    <!-- Lightbox -->
     <div class="lightbox" id="lightbox" onclick="closeLightbox()">
         <button class="lightbox-close" onclick="closeLightbox()">✕</button>
         <button class="lightbox-nav prev" onclick="event.stopPropagation(); navLightbox(-1)">‹</button>
@@ -781,29 +363,18 @@
         <div class="lightbox-label" id="lightboxLabel"></div>
         <button class="lightbox-download" id="lightboxDownload" onclick="event.stopPropagation(); downloadLightboxImage()">↓ Download</button>
     </div>
-
     <script>
-        // ── Config ──
         const API_BASE = window.location.origin;
         const S3_INVENTORY_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/PHOTOS+INVENTORY';
         const S3_OVERRIDE_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/STYLE+OVERRIDES';
         const S3_FOLDER_MAP = {
             'EB': 'EDDIE+BAUER', 'USPA': 'US+POLO', 'VINCE': 'VINCE+CAMUTO',
             'LUCKY': 'LUCKY+BRAND', 'BEN': 'BEN+SHERMAN', 'BEENE': 'GEOFFREY+BEENE',
-            'NICOLE': 'NICOLE+MILLER', 'TAYION': 'TAYON', 'VD': 'Von+Dutch',
-            'KL': 'KARL+LAGERFELD',
+            'NICOLE': 'NICOLE+MILLER', 'TAYION': 'TAYON', 'VD': 'Von+Dutch', 'KL': 'KARL+LAGERFELD',
         };
+        let photoIndex = {}, currentFilter = 'all', currentResults = [];
+        let lightboxImages = [], lightboxIdx = 0, searchTimeout = null, pollInterval = null;
 
-        // ── State ──
-        let photoIndex = {};      // brand_folder → { info, styles, ... }
-        let currentFilter = 'all';
-        let currentResults = [];   // current search results
-        let lightboxImages = [];   // current lightbox image list
-        let lightboxIdx = 0;
-        let searchTimeout = null;
-        let pollInterval = null;
-
-        // ── Init ──
         document.addEventListener('DOMContentLoaded', () => {
             loadIndex();
             document.getElementById('searchInput').addEventListener('input', onSearchInput);
@@ -819,68 +390,37 @@
             });
         });
 
-        // ── Data Loading ──
         async function loadIndex() {
             try {
-                const resp = await fetch(`${API_BASE}/api/index`);
+                const resp = await fetch(API_BASE + '/api/index');
                 const data = await resp.json();
-                
-                if (data.scan_status && data.scan_status.scanning) {
-                    showLoading(data.scan_status.progress || 'Scanning Dropbox...');
-                    startPolling();
-                    return;
-                }
-                
+                if (data.scan_status && data.scan_status.scanning) { showLoading(data.scan_status.progress || 'Scanning Dropbox...'); startPolling(); return; }
                 if (data.brands && Object.keys(data.brands).length > 0) {
                     photoIndex = data.brands;
                     if (data.s3_folder_map) Object.assign(S3_FOLDER_MAP, data.s3_folder_map);
-                    renderHome();
-                    updateStatus('ready');
-                } else {
-                    showLoading('No photos indexed yet. Click Rescan to start.');
-                    updateStatus('empty');
-                }
-            } catch (e) {
-                console.error('Failed to load index:', e);
-                showLoading('Failed to connect to API. Retrying...');
-                setTimeout(loadIndex, 5000);
-            }
+                    renderHome(); updateStatus('ready');
+                } else { showLoading('No photos indexed yet. Click Rescan to start.'); updateStatus('empty'); }
+            } catch (e) { console.error('Failed to load index:', e); showLoading('Failed to connect to API. Retrying...'); setTimeout(loadIndex, 5000); }
         }
 
         function startPolling() {
             if (pollInterval) return;
             pollInterval = setInterval(async () => {
                 try {
-                    const resp = await fetch(`${API_BASE}/api/status`);
+                    const resp = await fetch(API_BASE + '/api/status');
                     const status = await resp.json();
-                    if (status.scanning) {
-                        showLoading(status.progress || 'Scanning...');
-                    } else {
-                        clearInterval(pollInterval);
-                        pollInterval = null;
-                        loadIndex();
-                    }
-                } catch (e) {
-                    console.error('Poll error:', e);
-                }
+                    if (status.scanning) showLoading(status.progress || 'Scanning...');
+                    else { clearInterval(pollInterval); pollInterval = null; loadIndex(); }
+                } catch (e) { console.error('Poll error:', e); }
             }, 3000);
         }
 
         async function triggerScan() {
-            const btn = document.getElementById('scanBtn');
-            btn.classList.add('scanning');
-            try {
-                await fetch(`${API_BASE}/api/scan`, { method: 'POST' });
-                showLoading('Scan started...');
-                updateStatus('scanning');
-                startPolling();
-            } catch (e) {
-                console.error('Scan trigger failed:', e);
-                toast('Failed to start scan');
-            }
+            document.getElementById('scanBtn').classList.add('scanning');
+            try { await fetch(API_BASE + '/api/scan', { method: 'POST' }); showLoading('Scan started...'); updateStatus('scanning'); startPolling(); }
+            catch (e) { console.error('Scan trigger failed:', e); toast('Failed to start scan'); }
         }
 
-        // ── Rendering ──
         function showLoading(text) {
             document.getElementById('loadingState').style.display = '';
             document.getElementById('loadingText').textContent = text;
@@ -894,18 +434,9 @@
             const pill = document.getElementById('statusPill');
             const btn = document.getElementById('scanBtn');
             btn.classList.remove('scanning');
-            if (state === 'ready') {
-                pill.className = 'status-pill ready';
-                const totalStyles = Object.values(photoIndex).reduce((s, b) => s + b.style_count, 0);
-                pill.textContent = `${totalStyles} styles indexed`;
-            } else if (state === 'scanning') {
-                pill.className = 'status-pill';
-                pill.textContent = 'Scanning...';
-                btn.classList.add('scanning');
-            } else {
-                pill.className = 'status-pill';
-                pill.textContent = 'No data';
-            }
+            if (state === 'ready') { pill.className = 'status-pill ready'; const t = Object.values(photoIndex).reduce((s,b) => s + b.style_count, 0); pill.textContent = t + ' styles indexed'; }
+            else if (state === 'scanning') { pill.className = 'status-pill'; pill.textContent = 'Scanning...'; btn.classList.add('scanning'); }
+            else { pill.className = 'status-pill'; pill.textContent = 'No data'; }
         }
 
         function renderHome() {
@@ -913,118 +444,72 @@
             document.getElementById('brandsSection').style.display = '';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('emptyState').style.display = 'none';
-
-            const brands = Object.entries(photoIndex).sort((a, b) => 
-                (a[1].info?.full || a[0]).localeCompare(b[1].info?.full || b[0])
-            );
-
+            const brands = Object.entries(photoIndex).sort((a,b) => (a[1].info?.full||a[0]).localeCompare(b[1].info?.full||b[0]));
             let totalStyles = 0, totalImages = 0;
-            brands.forEach(([, b]) => { totalStyles += b.style_count; totalImages += b.image_count; });
-
+            brands.forEach(([,b]) => { totalStyles += b.style_count; totalImages += b.image_count; });
             document.getElementById('statsBar').style.display = 'flex';
             document.getElementById('statBrands').textContent = brands.length;
             document.getElementById('statStyles').textContent = totalStyles;
             document.getElementById('statImages').textContent = totalImages.toLocaleString();
-            document.getElementById('brandCountLabel').textContent = `(${brands.length})`;
-
-            const grid = document.getElementById('brandsGrid');
-            grid.innerHTML = brands.map(([folder, brand]) => {
-                const logo = brand.logo;
-                const name = brand.info?.full || folder;
-                return `<div class="brand-card" onclick="searchBrand('${escHtml(folder)}')">
-                    ${logo ? `<img class="brand-logo" src="${escHtml(logo)}" alt="${escHtml(name)}" onerror="this.style.display='none'">` : ''}
-                    <div class="brand-card-name">${escHtml(name)}</div>
-                    <div class="brand-card-stats"><b>${brand.style_count}</b> styles · <b>${brand.image_count}</b> images</div>
-                </div>`;
+            document.getElementById('brandCountLabel').textContent = '(' + brands.length + ')';
+            document.getElementById('brandsGrid').innerHTML = brands.map(([folder, brand]) => {
+                const logo = brand.logo, name = brand.info?.full || folder;
+                return '<div class="brand-card" onclick="searchBrand(\'' + esc(folder) + '\')">' +
+                    (logo ? '<img class="brand-logo" src="' + esc(logo) + '" alt="' + esc(name) + '" onerror="this.style.display=\'none\'">' : '') +
+                    '<div class="brand-card-name">' + esc(name) + '</div>' +
+                    '<div class="brand-card-stats"><b>' + brand.style_count + '</b> styles · <b>' + brand.image_count + '</b> images</div></div>';
             }).join('');
         }
 
         function searchBrand(folder) {
-            const brand = photoIndex[folder];
-            if (!brand) return;
-            const name = brand.info?.full || folder;
-            document.getElementById('searchInput').value = name;
-            executeSearch(name);
+            const brand = photoIndex[folder]; if (!brand) return;
+            document.getElementById('searchInput').value = brand.info?.full || folder;
+            executeSearch(brand.info?.full || folder);
         }
 
-        // ── Search ──
         function onSearchInput(e) {
             clearTimeout(searchTimeout);
             const q = e.target.value.trim();
-            if (!q) {
-                renderHome();
-                return;
-            }
+            if (!q) { renderHome(); return; }
             searchTimeout = setTimeout(() => executeSearch(q), 200);
         }
 
         async function executeSearch(query) {
-            try {
-                const resp = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`);
-                const data = await resp.json();
-                currentResults = data.results || [];
-                renderResults(query);
-            } catch (e) {
-                console.error('Search error:', e);
-            }
+            try { const resp = await fetch(API_BASE + '/api/search?q=' + encodeURIComponent(query)); const data = await resp.json(); currentResults = data.results || []; renderResults(query); }
+            catch (e) { console.error('Search error:', e); }
         }
 
         function renderResults(query) {
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('brandsSection').style.display = 'none';
             document.getElementById('statsBar').style.display = 'none';
-
-            if (currentResults.length === 0) {
-                document.getElementById('resultsSection').style.display = 'none';
-                document.getElementById('emptyState').style.display = '';
-                return;
-            }
-
+            if (currentResults.length === 0) { document.getElementById('resultsSection').style.display = 'none'; document.getElementById('emptyState').style.display = ''; return; }
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('resultsSection').style.display = '';
-            document.getElementById('resultsTitle').textContent = `Results for "${query}"`;
-            document.getElementById('resultsCount').textContent = `${currentResults.length} style${currentResults.length !== 1 ? 's' : ''} found`;
-
+            document.getElementById('resultsTitle').textContent = 'Results for "' + query + '"';
+            document.getElementById('resultsCount').textContent = currentResults.length + ' style' + (currentResults.length !== 1 ? 's' : '') + ' found';
             renderStyleCards(currentResults);
         }
 
         function renderStyleCards(results) {
             const grid = document.getElementById('stylesGrid');
-            
-            // Apply filter
             let filtered = results;
-            if (currentFilter === 'ghost') {
-                filtered = results.filter(r => r.ghost_count > 0);
-            } else if (currentFilter === 'model') {
-                filtered = results.filter(r => r.model_count > 0);
-            }
-
+            if (currentFilter === 'ghost') filtered = results.filter(r => r.ghost_count > 0);
+            else if (currentFilter === 'model') filtered = results.filter(r => r.model_count > 0);
             grid.innerHTML = filtered.map(r => {
                 const brandName = r.brand_info?.full || r.brand_folder;
                 const abbr = r.brand_info?.abbr || '';
                 const s3Folder = S3_FOLDER_MAP[abbr] || abbr;
-                // Use S3 override as thumbnail (fast, public, no auth needed)
-                const thumbUrl = `${S3_OVERRIDE_URL}/${r.style_code}.jpg`;
-                // Fallback: S3 brand folder
-                const fallbackUrl = `${S3_INVENTORY_URL}/${s3Folder}/${r.style_code}.jpg`;
-
+                const thumbUrl = S3_OVERRIDE_URL + '/' + r.style_code + '.jpg';
+                const fallbackUrl = S3_INVENTORY_URL + '/' + s3Folder + '/' + r.style_code + '.jpg';
                 const badges = [];
                 if (r.ghost_count > 0) badges.push('<span class="type-badge ghost">Ghost</span>');
                 if (r.model_count > 0) badges.push('<span class="type-badge model">Model</span>');
-
-                return `<div class="style-card" onclick="openStyle('${escHtml(r.brand_folder)}', '${escHtml(r.style_code)}')">
-                    <div class="style-card-thumb">
-                        <img src="${escHtml(thumbUrl)}" 
-                             onerror="this.onerror=()=>{this.style.display='none';this.parentElement.innerHTML+='<div class=placeholder>${escHtml(r.style_code)}</div>'};this.src='${escHtml(fallbackUrl)}'"
-                             alt="${escHtml(r.style_code)}" loading="lazy">
-                        <span class="brand-tag">${escHtml(brandName)}</span>
-                        <div class="type-badges">${badges.join('')}</div>
-                    </div>
-                    <div class="style-card-info">
-                        <div class="style-card-code">${escHtml(r.style_code)}</div>
-                        <div class="style-card-meta">${r.ghost_count} ghost · ${r.model_count} model</div>
-                    </div>
-                </div>`;
+                return '<div class="style-card" onclick="openStyle(\'' + esc(r.brand_folder) + '\', \'' + esc(r.style_code) + '\')">' +
+                    '<div class="style-card-thumb"><img src="' + esc(thumbUrl) + '" onerror="this.onerror=function(){this.style.display=\'none\';this.parentElement.innerHTML+=\'<div class=placeholder>' + esc(r.style_code) + '</div>\'};this.src=\'' + esc(fallbackUrl) + '\'" alt="' + esc(r.style_code) + '" loading="lazy">' +
+                    '<span class="brand-tag">' + esc(brandName) + '</span><div class="type-badges">' + badges.join('') + '</div></div>' +
+                    '<div class="style-card-info"><div class="style-card-code">' + esc(r.style_code) + '</div>' +
+                    '<div class="style-card-meta">' + r.ghost_count + ' ghost · ' + r.model_count + ' model</div></div></div>';
             }).join('');
         }
 
@@ -1034,182 +519,75 @@
             renderStyleCards(currentResults);
         }
 
-        // ── Expanded Style View ──
         async function openStyle(brandFolder, styleCode) {
             const view = document.getElementById('expandedView');
             const content = document.getElementById('expandedContent');
             const brand = photoIndex[brandFolder];
             const brandName = brand?.info?.full || brandFolder;
-
-            document.getElementById('expandedTitle').innerHTML = `<span>${escHtml(styleCode)}</span>`;
+            document.getElementById('expandedTitle').innerHTML = '<span>' + esc(styleCode) + '</span>';
             document.getElementById('expandedBrand').textContent = brandName;
             content.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading images from Dropbox...</div></div>';
-            view.classList.add('open');
-            document.body.style.overflow = 'hidden';
-
+            view.classList.add('open'); document.body.style.overflow = 'hidden';
             try {
-                const resp = await fetch(`${API_BASE}/api/images/${encodeURIComponent(brandFolder)}/${encodeURIComponent(styleCode)}`);
+                const resp = await fetch(API_BASE + '/api/images/' + encodeURIComponent(brandFolder) + '/' + encodeURIComponent(styleCode));
                 const data = await resp.json();
-
-                if (data.error) {
-                    content.innerHTML = `<div class="empty-state"><div class="empty-text">${escHtml(data.error)}</div></div>`;
-                    return;
-                }
-
-                let html = '';
-                const allImages = [];
-
-                // Ghost images
-                if (data.images.ghost && data.images.ghost.length > 0) {
-                    html += `<div class="expanded-section">
-                        <div class="expanded-section-title ghost-title"><div class="dot"></div>Ghost Photography (${data.images.ghost.length})</div>
-                        <div class="expanded-images">`;
-                    data.images.ghost.forEach((img, i) => {
-                        allImages.push({ url: img.url, label: `Ghost — ${img.angle || img.filename}`, filename: img.filename });
-                        html += `<div class="expanded-img-card" onclick="openLightbox(${allImages.length - 1})">
-                            <img src="${escHtml(img.url)}" alt="${escHtml(img.filename)}" loading="lazy">
-                            <div class="expanded-img-label">${escHtml(img.angle || img.filename)}</div>
-                        </div>`;
+                if (data.error) { content.innerHTML = '<div class="empty-state"><div class="empty-text">' + esc(data.error) + '</div></div>'; return; }
+                let html = ''; const allImages = [];
+                ['ghost', 'model', 'other'].forEach(type => {
+                    const imgs = data.images[type]; if (!imgs || !imgs.length) return;
+                    const tc = type === 'ghost' ? 'ghost-title' : type === 'model' ? 'model-title' : '';
+                    const label = type.charAt(0).toUpperCase() + type.slice(1);
+                    html += '<div class="expanded-section"><div class="expanded-section-title ' + tc + '"><div class="dot"></div>' + label + ' Photography (' + imgs.length + ')</div><div class="expanded-images">';
+                    imgs.forEach(img => {
+                        allImages.push({ url: img.url, label: label + ' — ' + (img.angle || img.filename), filename: img.filename });
+                        html += '<div class="expanded-img-card" onclick="openLightbox(' + (allImages.length-1) + ')"><img src="' + esc(img.url) + '" alt="' + esc(img.filename) + '" loading="lazy"><div class="expanded-img-label">' + esc(img.angle || img.filename) + '</div></div>';
                     });
                     html += '</div></div>';
-                }
-
-                // Model images
-                if (data.images.model && data.images.model.length > 0) {
-                    html += `<div class="expanded-section">
-                        <div class="expanded-section-title model-title"><div class="dot"></div>Model Photography (${data.images.model.length})</div>
-                        <div class="expanded-images">`;
-                    data.images.model.forEach((img, i) => {
-                        allImages.push({ url: img.url, label: `Model — ${img.angle || img.filename}`, filename: img.filename });
-                        html += `<div class="expanded-img-card" onclick="openLightbox(${allImages.length - 1})">
-                            <img src="${escHtml(img.url)}" alt="${escHtml(img.filename)}" loading="lazy">
-                            <div class="expanded-img-label">${escHtml(img.angle || img.filename)}</div>
-                        </div>`;
-                    });
-                    html += '</div></div>';
-                }
-
-                // Other images
-                if (data.images.other && data.images.other.length > 0) {
-                    html += `<div class="expanded-section">
-                        <div class="expanded-section-title"><div class="dot" style="background:var(--text-muted)"></div>Other (${data.images.other.length})</div>
-                        <div class="expanded-images">`;
-                    data.images.other.forEach((img, i) => {
-                        allImages.push({ url: img.url, label: img.filename, filename: img.filename });
-                        html += `<div class="expanded-img-card" onclick="openLightbox(${allImages.length - 1})">
-                            <img src="${escHtml(img.url)}" alt="${escHtml(img.filename)}" loading="lazy">
-                            <div class="expanded-img-label">${escHtml(img.angle || img.filename)}</div>
-                        </div>`;
-                    });
-                    html += '</div></div>';
-                }
-
-                // S3 Inventory Image (standard product shot)
-                const abbr = brand?.info?.abbr || '';
-                const s3Folder = S3_FOLDER_MAP[abbr] || abbr;
-                const invUrls = [
-                    `${S3_OVERRIDE_URL}/${styleCode}.jpg`,
-                    `${S3_INVENTORY_URL}/${s3Folder}/${styleCode}.jpg`,
-                ];
-
-                html += `<div class="expanded-section" id="inventorySection">
-                    <div class="expanded-section-title inv-title"><div class="dot"></div>Inventory Image</div>
-                    <div class="expanded-images" id="inventoryImages"></div>
-                </div>`;
-
-                if (!html.trim() || ((!data.images.ghost || !data.images.ghost.length) && (!data.images.model || !data.images.model.length) && (!data.images.other || !data.images.other.length))) {
-                    html = `<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">No professional photos found for this style in Dropbox.</div></div>` + html;
-                }
-
-                content.innerHTML = html;
-                lightboxImages = allImages;
-
-                // Probe S3 inventory images
+                });
+                const abbr = brand?.info?.abbr || '', s3Folder = S3_FOLDER_MAP[abbr] || abbr;
+                html += '<div class="expanded-section" id="inventorySection"><div class="expanded-section-title inv-title"><div class="dot"></div>Inventory Image</div><div class="expanded-images" id="inventoryImages"></div></div>';
+                if (!allImages.length) html = '<div class="empty-state"><div class="empty-icon">📷</div><div class="empty-text">No professional photos found for this style in Dropbox.</div></div>' + html;
+                content.innerHTML = html; lightboxImages = allImages;
                 const invContainer = document.getElementById('inventoryImages');
                 if (invContainer) {
+                    const invUrls = [S3_OVERRIDE_URL + '/' + styleCode + '.jpg', S3_INVENTORY_URL + '/' + s3Folder + '/' + styleCode + '.jpg'];
                     let foundInv = false;
                     for (const url of invUrls) {
-                        try {
-                            const img = new Image();
-                            const loaded = await new Promise((resolve) => {
-                                img.onload = () => resolve(true);
-                                img.onerror = () => resolve(false);
-                                img.src = url;
-                            });
-                            if (loaded && img.naturalWidth > 1) {
-                                const idx = lightboxImages.length;
-                                lightboxImages.push({ url, label: 'Inventory', filename: styleCode + '.jpg' });
-                                invContainer.innerHTML += `<div class="expanded-img-card" onclick="openLightbox(${idx})">
-                                    <img src="${escHtml(url)}" alt="Inventory image">
-                                    <div class="expanded-img-label">Standard</div>
-                                </div>`;
-                                foundInv = true;
-                                break;
-                            }
-                        } catch (e) {}
+                        const loaded = await new Promise(resolve => { const img = new Image(); img.onload = () => resolve(img.naturalWidth > 1); img.onerror = () => resolve(false); img.src = url; });
+                        if (loaded) {
+                            const idx = lightboxImages.length;
+                            lightboxImages.push({ url, label: 'Inventory', filename: styleCode + '.jpg' });
+                            invContainer.innerHTML += '<div class="expanded-img-card" onclick="openLightbox(' + idx + ')"><img src="' + esc(url) + '" alt="Inventory image"><div class="expanded-img-label">Standard</div></div>';
+                            foundInv = true; break;
+                        }
                     }
-                    if (!foundInv) {
-                        document.getElementById('inventorySection').style.display = 'none';
-                    }
+                    if (!foundInv) document.getElementById('inventorySection').style.display = 'none';
                 }
-
-            } catch (e) {
-                console.error('Failed to load style images:', e);
-                content.innerHTML = '<div class="empty-state"><div class="empty-text">Failed to load images. Try again.</div></div>';
-            }
+            } catch (e) { console.error('Failed to load style images:', e); content.innerHTML = '<div class="empty-state"><div class="empty-text">Failed to load images. Try again.</div></div>'; }
         }
 
-        function closeExpanded() {
-            document.getElementById('expandedView').classList.remove('open');
-            document.body.style.overflow = '';
-        }
+        function closeExpanded() { document.getElementById('expandedView').classList.remove('open'); document.body.style.overflow = ''; }
 
-        // ── Lightbox ──
         function openLightbox(idx) {
-            lightboxIdx = idx;
-            const img = lightboxImages[idx];
-            if (!img) return;
+            lightboxIdx = idx; const img = lightboxImages[idx]; if (!img) return;
             document.getElementById('lightboxImg').src = img.url;
-            document.getElementById('lightboxLabel').textContent = `${img.label} — ${idx + 1} of ${lightboxImages.length}`;
+            document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (idx+1) + ' of ' + lightboxImages.length;
             document.getElementById('lightbox').classList.add('open');
         }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.remove('open');
-        }
-
+        function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
         function navLightbox(dir) {
             lightboxIdx = (lightboxIdx + dir + lightboxImages.length) % lightboxImages.length;
             const img = lightboxImages[lightboxIdx];
             document.getElementById('lightboxImg').src = img.url;
-            document.getElementById('lightboxLabel').textContent = `${img.label} — ${lightboxIdx + 1} of ${lightboxImages.length}`;
+            document.getElementById('lightboxLabel').textContent = img.label + ' — ' + (lightboxIdx+1) + ' of ' + lightboxImages.length;
         }
-
         function downloadLightboxImage() {
-            const img = lightboxImages[lightboxIdx];
-            if (!img) return;
-            const a = document.createElement('a');
-            a.href = img.url;
-            a.download = img.filename || 'image.jpg';
-            a.target = '_blank';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const img = lightboxImages[lightboxIdx]; if (!img) return;
+            const a = document.createElement('a'); a.href = img.url; a.download = img.filename || 'image.jpg';
+            a.target = '_blank'; document.body.appendChild(a); a.click(); a.remove();
         }
-
-        // ── Helpers ──
-        function escHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-        }
-
-        function toast(msg) {
-            const t = document.createElement('div');
-            t.className = 'toast';
-            t.textContent = msg;
-            document.body.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
-        }
+        function esc(str) { if (!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,"&#39;"); }
+        function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
     </script>
 </body>
 </html>
