@@ -4,6 +4,7 @@ import json
 import time
 import re
 import base64 as b64mod
+import uuid
 import threading
 import logging
 import zipfile
@@ -1039,6 +1040,228 @@ def api_download_zip():
     except Exception as e:
         log.error(f'ZIP generation error: {e}', exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+# ─── AI Assistant ─────────────────────────────────────────────────────────────
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+AI_MODEL = 'claude-sonnet-4-20250514'
+
+AI_SYSTEM_PROMPT = """You are the Versa Photo Studio AI assistant. You help users manage professional product photography for Versa Group's men's apparel brands.
+
+You can:
+1. Search for styles by brand, number, or SKU
+2. Analyze product images to identify what they show (front/back/side view, model/ghost shot, close-up, etc.)
+3. Rename images in the user's cart based on what you see in them
+4. Answer questions about the platform
+
+When asked to rename images, use the rename_images tool. Analyze each image carefully — look at the angle, whether it shows a model or flat/ghost garment, and describe it with clear names like "Front", "Back", "Side", "Detail", "Close-up", etc.
+
+When multiple images of the same type exist (e.g., two front views), number them: "Front 1", "Front 2".
+
+For model shots, identify the pose: is the model facing forward (Front), turned sideways (Side), or showing the back (Back)?
+For ghost/flat shots: identify if it's the front of the garment, back, a detail shot, collar, cuffs, etc.
+
+Keep your responses concise and helpful."""
+
+@app.route('/api/ai/chat', methods=['POST'])
+def api_ai_chat():
+    """AI chat endpoint — proxies to Anthropic Claude API with vision support."""
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'error': 'AI not configured. Set ANTHROPIC_API_KEY env var.'}), 503
+    
+    data = request.get_json()
+    messages = data.get('messages', [])
+    
+    if not messages:
+        return jsonify({'error': 'No messages'}), 400
+    
+    # Build API request
+    tools = [
+        {
+            "name": "rename_images",
+            "description": "Rename images in the user's cart. Provide a list of renames: original filename → new filename.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "renames": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "style_code": {"type": "string", "description": "Style code e.g. NA_201"},
+                                "original_filename": {"type": "string", "description": "Current filename"},
+                                "new_name": {"type": "string", "description": "New filename (without extension)"}
+                            },
+                            "required": ["style_code", "original_filename", "new_name"]
+                        },
+                        "description": "List of rename operations"
+                    }
+                },
+                "required": ["renames"]
+            }
+        },
+        {
+            "name": "search_styles",
+            "description": "Search for styles in the Photo Studio. Returns matching styles with image counts.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query — brand name, style number, or SKU"}
+                },
+                "required": ["query"]
+            }
+        }
+    ]
+    
+    api_body = {
+        "model": AI_MODEL,
+        "max_tokens": 2048,
+        "system": AI_SYSTEM_PROMPT,
+        "messages": messages,
+        "tools": tools,
+    }
+    
+    try:
+        req_data = json.dumps(api_body).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=req_data,
+            headers={
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+            },
+            method='POST'
+        )
+        resp = urllib.request.urlopen(req, timeout=60)
+        result = json.loads(resp.read())
+        return jsonify(result)
+    
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8', errors='replace')
+        log.error(f'Anthropic API error {e.code}: {error_body}')
+        return jsonify({'error': f'AI API error: {e.code}', 'details': error_body}), 502
+    except Exception as e:
+        log.error(f'AI chat error: {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai/analyze', methods=['POST'])
+def api_ai_analyze():
+    """Analyze images using Claude vision. Accepts image URLs and returns descriptions."""
+    if not ANTHROPIC_API_KEY:
+        return jsonify({'error': 'AI not configured'}), 503
+    
+    data = request.get_json()
+    images = data.get('images', [])  # [{url, filename, style_code}]
+    instruction = data.get('instruction', 'Describe each image and suggest a descriptive filename.')
+    
+    if not images:
+        return jsonify({'error': 'No images'}), 400
+    
+    # Build vision message content
+    content = []
+    for img in images[:20]:  # Max 20 images per call
+        url = img.get('url', '')
+        if url.startswith('data:'):
+            # Base64 image
+            media_type = url.split(';')[0].split(':')[1] if ';' in url else 'image/jpeg'
+            b64_data = url.split(',')[1] if ',' in url else url
+            content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": media_type, "data": b64_data}
+            })
+        elif url:
+            content.append({
+                "type": "image",
+                "source": {"type": "url", "url": url}
+            })
+        content.append({
+            "type": "text",
+            "text": f"Image {len([c for c in content if c['type']=='image'])}: {img.get('filename', 'unknown')} (Style: {img.get('style_code', '?')})"
+        })
+    
+    content.append({"type": "text", "text": f"\nInstruction: {instruction}\n\nFor each image, respond with a JSON array of objects: [{{\"filename\": \"original.jpg\", \"suggested_name\": \"Descriptive Name\", \"description\": \"brief description\"}}]"})
+    
+    api_body = {
+        "model": AI_MODEL,
+        "max_tokens": 2048,
+        "messages": [{"role": "user", "content": content}],
+    }
+    
+    try:
+        req_data = json.dumps(api_body).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=req_data,
+            headers={
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+            },
+            method='POST'
+        )
+        resp = urllib.request.urlopen(req, timeout=60)
+        result = json.loads(resp.read())
+        
+        # Extract text response
+        text = ''
+        for block in result.get('content', []):
+            if block.get('type') == 'text':
+                text += block['text']
+        
+        # Try to parse JSON from response
+        suggestions = []
+        try:
+            import re as _re
+            json_match = _re.search(r'\[.*\]', text, _re.DOTALL)
+            if json_match:
+                suggestions = json.loads(json_match.group())
+        except:
+            pass
+        
+        return jsonify({'text': text, 'suggestions': suggestions})
+    
+    except Exception as e:
+        log.error(f'AI analyze error: {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── Share Storage ────────────────────────────────────────────────────────────
+share_store = {}  # share_id → {created, items: [{style_code, brand, brand_folder, images: [{path, filename}]}]}
+SHARE_MAX_AGE = 30 * 24 * 3600  # 30 days
+
+@app.route('/api/share', methods=['POST'])
+def api_create_share():
+    """Save a cart selection for sharing. Returns a short share ID."""
+    data = request.get_json()
+    items = data.get('items', [])
+    if not items:
+        return jsonify({'error': 'No items'}), 400
+    
+    share_id = uuid.uuid4().hex[:10]
+    share_store[share_id] = {
+        'created': time.time(),
+        'items': items,
+    }
+    
+    # Cleanup old shares
+    now = time.time()
+    stale = [k for k, v in share_store.items() if now - v['created'] > SHARE_MAX_AGE]
+    for k in stale:
+        del share_store[k]
+    
+    log.info(f'Created share {share_id} with {len(items)} styles')
+    return jsonify({'share_id': share_id, 'url': f'/share?id={share_id}'})
+
+
+@app.route('/api/share/<share_id>')
+def api_get_share(share_id):
+    """Retrieve a saved share by ID."""
+    share = share_store.get(share_id)
+    if not share:
+        return jsonify({'error': 'Share link not found or expired'}), 404
+    return jsonify(share)
 
 
 @app.route('/share')
