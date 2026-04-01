@@ -1042,6 +1042,141 @@ def api_download_zip():
         return jsonify({'error': str(e)}), 500
 
 
+# ─── ZIP Jobs with Progress ──────────────────────────────────────────────────
+zip_jobs = {}  # job_id → {status, progress, total, buf, error, zip_name}
+
+@app.route('/api/zip/start', methods=['POST'])
+def api_zip_start():
+    """Start a background ZIP job. Returns job_id for progress polling."""
+    data = request.get_json()
+    items = data.get('items', [])
+    custom_zip_name = data.get('zip_name', '')
+    if not items:
+        return jsonify({'error': 'No items'}), 400
+    
+    total_paths = sum(len(item.get('paths', [])) for item in items)
+    if total_paths > 200:
+        return jsonify({'error': f'Too many images ({total_paths}). Max 200.'}), 400
+    
+    job_id = uuid.uuid4().hex[:12]
+    zip_jobs[job_id] = {
+        'status': 'starting',
+        'progress': 0,
+        'total': total_paths,
+        'buf': None,
+        'error': None,
+        'zip_name': '',
+    }
+    
+    # Determine zip name
+    if custom_zip_name:
+        zn = custom_zip_name
+    elif len(items) == 1:
+        fn = items[0].get('folder_name', '').strip()
+        zn = (fn or items[0].get('style_code', 'photos')) + '.zip'
+    else:
+        zn = f"Versa_Photos_{len(items)}_styles.zip"
+    zip_jobs[job_id]['zip_name'] = re.sub(r'[<>:"/\\|?*]', '_', zn)
+    
+    threading.Thread(target=_build_zip, args=(job_id, items), daemon=True).start()
+    return jsonify({'job_id': job_id, 'total': total_paths})
+
+
+def _build_zip(job_id, items):
+    """Background thread: build ZIP with progress updates."""
+    job = zip_jobs[job_id]
+    job['status'] = 'downloading'
+    done = 0
+    
+    try:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for item in items:
+                style_code = item.get('style_code', 'unknown')
+                brand = item.get('brand', '')
+                paths = item.get('paths', [])
+                urls_map = item.get('urls', {})
+                base64s = item.get('base64', {})
+                custom_filenames = item.get('filenames', {})
+                
+                folder_name = item.get('folder_name', '').strip()
+                if not folder_name:
+                    folder_name = f"{brand} - {style_code}" if brand else style_code
+                folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)
+                
+                for dbx_path in paths:
+                    filename = custom_filenames.get(dbx_path, os.path.basename(dbx_path))
+                    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+                    
+                    try:
+                        img_data = None
+                        if dbx_path.startswith('override://') and dbx_path in base64s:
+                            b64 = base64s[dbx_path]
+                            if ',' in b64:
+                                b64 = b64.split(',', 1)[1]
+                            img_data = b64mod.b64decode(b64)
+                        elif dbx_path.startswith('s3://') and dbx_path in urls_map:
+                            req = urllib.request.Request(urls_map[dbx_path], headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+                            resp = urllib.request.urlopen(req, timeout=15)
+                            img_data = resp.read()
+                        else:
+                            url = get_temp_link(dbx_path)
+                            if not url:
+                                done += 1
+                                job['progress'] = done
+                                continue
+                            req = urllib.request.Request(url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+                            resp = urllib.request.urlopen(req, timeout=15)
+                            img_data = resp.read()
+                        
+                        if img_data:
+                            zf.writestr(f"{folder_name}/{filename}", img_data)
+                    except Exception as e:
+                        log.warning(f'ZIP job {job_id}: failed {dbx_path}: {e}')
+                    
+                    done += 1
+                    job['progress'] = done
+        
+        job['buf'] = buf
+        job['status'] = 'done'
+    except Exception as e:
+        log.error(f'ZIP job {job_id} error: {e}', exc_info=True)
+        job['status'] = 'error'
+        job['error'] = str(e)
+
+
+@app.route('/api/zip/status/<job_id>')
+def api_zip_status(job_id):
+    job = zip_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify({
+        'status': job['status'],
+        'progress': job['progress'],
+        'total': job['total'],
+        'error': job['error'],
+        'zip_name': job['zip_name'],
+    })
+
+
+@app.route('/api/zip/download/<job_id>')
+def api_zip_download(job_id):
+    job = zip_jobs.get(job_id)
+    if not job or job['status'] != 'done' or not job['buf']:
+        return jsonify({'error': 'ZIP not ready'}), 404
+    
+    buf = job['buf']
+    zn = job['zip_name']
+    # Clean up job after download
+    del zip_jobs[job_id]
+    
+    return Response(
+        buf.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename="{zn}"'}
+    )
+
+
 # ─── AI Assistant ─────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 AI_MODEL = 'claude-sonnet-4-20250514'
