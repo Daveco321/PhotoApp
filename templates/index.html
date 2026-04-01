@@ -854,21 +854,42 @@ async function downloadAllShared(){
     const btn=document.querySelector('.share-banner-btn');if(btn){btn.disabled=true;btn.textContent='⏳ Preparing...';}
     const items=[];
     for(const r of currentResults){
-        try{const resp=await fetch(API+'/api/images/'+encodeURIComponent(r.brand_folder)+'/'+encodeURIComponent(r.style_code));const d=await resp.json();
-            // If share data exists, only include selected images
+        try{
+            // Use brand_folder from share data if available (more reliable)
+            let bf=r.brand_folder;
+            let customNames={};
+            if(shareData&&shareData.items){
+                const si=shareData.items.find(i=>i.style_code===r.style_code);
+                if(si){
+                    if(si.brand_folder)bf=si.brand_folder;
+                    si.images.forEach(i=>{if(i.customName)customNames[i.path]=i.customName;});
+                }
+            }
+            const resp=await fetch(API+'/api/images/'+encodeURIComponent(bf)+'/'+encodeURIComponent(r.style_code));
+            const d=await resp.json();
+            if(d.error)continue;
+            
             let allowedPaths=null;
             if(shareData&&shareData.items){const si=shareData.items.find(i=>i.style_code===r.style_code);
-                if(si)allowedPaths=new Set(si.images.map(i=>i.path));}
-            const paths=[];const urls={};const base64s={};
+                if(si&&si.images.length)allowedPaths=new Set(si.images.map(i=>i.path));}
+            
+            const paths=[];const urls={};const base64s={};const filenames={};
             ['ghost','model','other'].forEach(t=>{if(d.images&&d.images[t])d.images[t].forEach(img=>{
-                if(!allowedPaths||allowedPaths.has(img.path))paths.push(img.path);
+                if(!allowedPaths||allowedPaths.has(img.path)){
+                    paths.push(img.path);
+                    if(customNames[img.path])filenames[img.path]=customNames[img.path];
+                }
             });});
             if(!paths.length){
                 const ovImg=getOverrideImage(r.style_code);
                 if(ovImg){const p='override://'+r.style_code;if(!allowedPaths||allowedPaths.has(p)){paths.push(p);base64s[p]=ovImg;}}
                 else{const ab=r.brand_info?.abbr||'',sf=S3M[ab]||ab;const s3url=S3O+'/'+r.style_code+'.jpg';const p='s3://'+r.style_code;paths.push(p);urls[p]=s3url;}
             }
-            if(paths.length)items.push({style_code:r.style_code,brand:r.brand_info?.full||r.brand_folder,paths,urls,base64:base64s});}catch(e){}
+            if(paths.length){
+                const bn=r.brand_info?.full||r.brand_folder;
+                items.push({style_code:r.style_code,brand:bn,folder_name:bn+' - '+r.style_code,paths,filenames,urls,base64:base64s});
+            }
+        }catch(e){console.warn('Failed to load',r.style_code,e);}
     }
     if(!items.length){toast('No images to download');if(btn){btn.disabled=false;btn.textContent='↓ Download All as ZIP';}return;}
     try{await downloadWithProgress(items,'Versa_Photos.zip');}
