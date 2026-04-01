@@ -218,6 +218,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .rs-img-name:focus{border-color:var(--purple)}
 .rs-img-name.just-renamed{border-color:var(--success);background:rgba(34,197,94,0.1)}
 @keyframes flashGreen{0%{background:rgba(34,197,94,0.2)}100%{background:rgba(34,197,94,0.05)}}
+/* ZIP Progress Overlay */
+.zip-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center}
+.zip-overlay.open{display:flex}
+.zip-card{background:rgba(25,25,35,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:40px 48px;text-align:center;max-width:400px;width:90%}
+.zip-card h3{color:white;font-size:18px;font-weight:700;margin-bottom:8px}
+.zip-card .zip-sub{color:rgba(255,255,255,0.5);font-size:13px;margin-bottom:24px}
+.zip-pct{font-size:56px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.zip-bar-outer{width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.zip-bar-inner{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:4px;transition:width 0.3s ease}
+.zip-detail{color:rgba(255,255,255,0.4);font-size:12px}
 @media(max-width:768px){.header{padding:14px 16px}.search-area{padding:16px 16px 12px}.main{padding:0 16px 40px}.brands-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.styles-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.expanded-inner{padding:16px}.expanded-title{font-size:22px}.stats-bar{gap:24px}.stat-value{font-size:22px}.header-title{font-size:18px}.cart-panel{width:100%;max-width:100%}}
 </style>
 </head>
@@ -300,6 +310,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <button class="lightbox-nav next" onclick="event.stopPropagation();navLightbox(1)">›</button>
     <div class="lightbox-label" id="lightboxLabel"></div>
     <button class="lightbox-download" onclick="event.stopPropagation();downloadLightboxImage()">↓ Download</button>
+</div>
+<!-- ZIP Progress Overlay -->
+<div class="zip-overlay" id="zipOverlay">
+    <div class="zip-card">
+        <h3>📦 Preparing Export</h3>
+        <div class="zip-sub" id="zipSub">Downloading images from Dropbox...</div>
+        <div class="zip-pct" id="zipPct">0%</div>
+        <div class="zip-bar-outer"><div class="zip-bar-inner" id="zipBar" style="width:0%"></div></div>
+        <div class="zip-detail" id="zipDetail">0 / 0 images</div>
+    </div>
 </div>
 <!-- AI Chat Widget -->
 <button class="ai-btn" id="aiBtn" onclick="toggleAI()" title="AI Assistant">✨</button>
@@ -748,7 +768,7 @@ return'<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px"><i
 // ── ZIP Download ──
 async function downloadZip(){
     const keys=Object.keys(cart);if(!keys.length){toast('Cart is empty');return;}
-    const btn=document.getElementById('downloadZipBtn');btn.disabled=true;btn.textContent='⏳ Generating ZIP...';
+    const btn=document.getElementById('downloadZipBtn');btn.disabled=true;btn.textContent='⏳ Starting...';
     const items=keys.map(k=>{
         const c=cart[k];const fnames={};const urls={};const base64s={};
         c.images.forEach(img=>{
@@ -759,12 +779,56 @@ async function downloadZip(){
         return{style_code:c.styleCode,brand:c.brandInfo?.full||c.brandFolder,folder_name:c.folderName||'',paths:c.images.map(i=>i.path),filenames:fnames,urls,base64:base64s};
     });
     try{
-        const r=await fetch(API+'/api/download-zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
-        if(!r.ok){const e=await r.json();throw new Error(e.error||'Download failed');}
-        const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');
-        a.href=url;a.download=items.length===1?(items[0].folder_name||items[0].style_code)+'.zip':'Versa_Photos.zip';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
-        toast('ZIP downloaded!');
+        await downloadWithProgress(items);
     }catch(e){toast('Error: '+e.message);}finally{btn.disabled=false;btn.textContent='↓ Download ZIP';}
+}
+
+async function downloadWithProgress(items,zipName){
+    const overlay=document.getElementById('zipOverlay');
+    overlay.classList.add('open');
+    document.getElementById('zipPct').textContent='0%';
+    document.getElementById('zipBar').style.width='0%';
+    document.getElementById('zipDetail').textContent='Starting...';
+    document.getElementById('zipSub').textContent='Downloading images from Dropbox...';
+    
+    try{
+        // Start job
+        const startResp=await fetch(API+'/api/zip/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items,zip_name:zipName||''})});
+        const startData=await startResp.json();
+        if(startData.error)throw new Error(startData.error);
+        const jobId=startData.job_id;const total=startData.total;
+        
+        // Poll for progress
+        let status='downloading';
+        while(status==='downloading'||status==='starting'){
+            await new Promise(r=>setTimeout(r,500));
+            const pollResp=await fetch(API+'/api/zip/status/'+jobId);
+            const poll=await pollResp.json();
+            status=poll.status;
+            const pct=total>0?Math.round((poll.progress/total)*100):0;
+            document.getElementById('zipPct').textContent=pct+'%';
+            document.getElementById('zipBar').style.width=pct+'%';
+            document.getElementById('zipDetail').textContent=poll.progress+' / '+total+' images';
+            if(pct>80)document.getElementById('zipSub').textContent='Almost there...';
+            if(poll.error){throw new Error(poll.error);}
+        }
+        
+        if(status==='done'){
+            document.getElementById('zipPct').textContent='100%';
+            document.getElementById('zipBar').style.width='100%';
+            document.getElementById('zipSub').textContent='Downloading ZIP file...';
+            document.getElementById('zipDetail').textContent='Preparing download...';
+            
+            const dlResp=await fetch(API+'/api/zip/download/'+jobId);
+            const blob=await dlResp.blob();
+            const url=URL.createObjectURL(blob);const a=document.createElement('a');
+            const zn=startData.zip_name||items[0]?.style_code+'.zip'||'Versa_Photos.zip';
+            a.href=url;a.download=zn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+            toast('ZIP downloaded!');
+        }else{throw new Error('ZIP generation failed');}
+    }finally{
+        overlay.classList.remove('open');
+    }
 }
 
 // ── Share ──
@@ -807,9 +871,7 @@ async function downloadAllShared(){
             if(paths.length)items.push({style_code:r.style_code,brand:r.brand_info?.full||r.brand_folder,paths,urls,base64:base64s});}catch(e){}
     }
     if(!items.length){toast('No images to download');if(btn){btn.disabled=false;btn.textContent='↓ Download All as ZIP';}return;}
-    try{const r=await fetch(API+'/api/download-zip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items})});
-        if(!r.ok)throw new Error('Failed');const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');
-        a.href=url;a.download='Versa_Photos.zip';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast('Downloaded!');}
+    try{await downloadWithProgress(items,'Versa_Photos.zip');}
     catch(e){toast('Error: '+e.message);}finally{if(btn){btn.disabled=false;btn.textContent='↓ Download All as ZIP';}}
 }
 
