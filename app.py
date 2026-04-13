@@ -34,14 +34,14 @@ S3_INVENTORY_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENT
 S3_OVERRIDE_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/STYLE+OVERRIDES'
 
 # S3 extra folders to pull directly into the photo index
-# Each entry: { prefix, brand_abbr, brand_full, s3_base_url }
+# Each entry defines an S3 prefix to list — bucket is public so listing works.
 S3_EXTRA_FOLDERS = [
     {
         'prefix': 'ALL+INVENTORY+Photos/PHOTOS+INVENTORY/Von+Dutch/Von+Dutch+Jewelry/',
         'brand_abbr': 'VD',
         'brand_full': 'Von Dutch',
         'brand_folder': 'Von Dutch',
-        'photo_type': 'other',   # default type for these images
+        'photo_type': 'other',
     },
 ]
 S3_BUCKET_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com'
