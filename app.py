@@ -35,9 +35,10 @@ S3_OVERRIDE_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTO
 
 # S3 extra folders to pull directly into the photo index
 # Each entry defines an S3 prefix to list — bucket is public so listing works.
+# Use raw paths with actual spaces — they'll be URL-encoded properly in the function.
 S3_EXTRA_FOLDERS = [
     {
-        'prefix': 'ALL+INVENTORY+Photos/PHOTOS+INVENTORY/Von+Dutch/Von+Dutch+Jewelry/',
+        'prefix': 'ALL INVENTORY Photos/PHOTOS INVENTORY/Von Dutch/Von Dutch Jewelry/',
         'brand_abbr': 'VD',
         'brand_full': 'Von Dutch',
         'brand_folder': 'Von Dutch',
@@ -568,31 +569,36 @@ def _load_dropbox_photo_codes():
 
 # ─── S3 Extra Folder Loader ─────────────────────────────────────────────────
 def _load_s3_extra_folders():
-    """Fetch image listings from S3 extra folders (e.g. Von Dutch Jewelry).
+    """Load images from S3 extra folders (e.g. Von Dutch Jewelry) into the photo index.
     
-    Uses the S3 List Objects v2 API on the public bucket to enumerate files,
+    Uses the S3 ListObjectsV2 API on the public bucket to enumerate files,
     then groups them by style number and merges into the photo index.
     """
     global photo_index
     import xml.etree.ElementTree as ET
+    import urllib.parse
 
     for folder_cfg in S3_EXTRA_FOLDERS:
-        s3_prefix = folder_cfg['prefix']
+        raw_prefix = folder_cfg['prefix']
         brand_abbr = folder_cfg['brand_abbr']
         brand_full = folder_cfg['brand_full']
         brand_folder_name = folder_cfg['brand_folder']
         photo_type = folder_cfg.get('photo_type', 'other')
 
         try:
-            # S3 List Objects v2 — public bucket, no auth needed
-            list_url = f'{S3_BUCKET_URL}?list-type=2&prefix={s3_prefix}&max-keys=500'
-            log.info(f'Fetching S3 listing: {list_url}')
+            # Build the S3 ListObjectsV2 URL with properly encoded prefix
+            encoded_prefix = urllib.parse.quote(raw_prefix, safe='/')
+            list_url = f'{S3_BUCKET_URL}/?list-type=2&prefix={encoded_prefix}&max-keys=500'
+
+            log.info(f'S3 extra folder: listing {list_url}')
             req = urllib.request.Request(list_url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
             resp = urllib.request.urlopen(req, timeout=20)
             xml_data = resp.read()
-            root = ET.fromstring(xml_data)
 
-            # S3 XML namespace
+            root = ET.fromstring(xml_data)
+            log.info(f'S3 extra folder: XML root tag = {root.tag}')
+
+            # S3 XML namespace (e.g. {http://s3.amazonaws.com/doc/2006-03-01/})
             ns = ''
             if root.tag.startswith('{'):
                 ns = root.tag.split('}')[0] + '}'
@@ -603,13 +609,18 @@ def _load_s3_extra_folders():
                 if key_el is not None and key_el.text:
                     keys.append(key_el.text)
 
+            log.info(f'S3 extra folder: found {len(keys)} total keys')
+            if keys:
+                log.info(f'S3 extra folder: first key = {keys[0]}')
+
             # Filter to image files only
             image_keys = [k for k in keys if os.path.splitext(k)[1].lower() in IMAGE_EXTS]
             if not image_keys:
-                log.info(f'No images found in S3 folder: {s3_prefix}')
+                log.warning(f'S3 extra folder: no image files found in {raw_prefix} '
+                            f'(total keys: {len(keys)})')
                 continue
 
-            log.info(f'Found {len(image_keys)} images in S3 folder: {s3_prefix}')
+            log.info(f'S3 extra folder: {len(image_keys)} image files')
 
             # Ensure brand exists in the index
             target_folder = None
@@ -638,8 +649,8 @@ def _load_s3_extra_folders():
                 name_no_ext = os.path.splitext(filename)[0]
 
                 # Parse style code from filename
-                # Pattern: BVDNP010BC-1.jpg → style = BVDNP010BC, variant = 1
-                # Also handle: BVDNP010BC.jpg (no variant suffix)
+                # e.g. BVDNP010BC-1.jpg → style=BVDNP010BC, variant=1
+                #      BVDNP010BC.jpg   → style=BVDNP010BC, variant=None
                 parts_match = re.match(r'^(.+?)(?:-(\d+))?$', name_no_ext)
                 if not parts_match:
                     continue
@@ -647,11 +658,12 @@ def _load_s3_extra_folders():
                 style_code = parts_match.group(1).upper()
                 variant = parts_match.group(2) or '1'
 
-                # Build the direct S3 URL (URL-encode the key using + for spaces)
-                s3_url = f'{S3_BUCKET_URL}/{key.replace(" ", "+")}'
+                # Build the direct S3 URL — encode spaces as + for the path
+                s3_url = f'{S3_BUCKET_URL}/{urllib.parse.quote(key)}'
 
                 # Determine angle from variant number
-                angle_map = {'1': 'front', '2': 'back', '3': 'side', '4': 'detail', '5': 'detail2'}
+                angle_map = {'1': 'front', '2': 'back', '3': 'side',
+                             '4': 'detail', '5': 'detail2', '6': 'detail3'}
                 angle = angle_map.get(variant, f'view {variant}')
 
                 # Create style entry if needed
@@ -661,20 +673,21 @@ def _load_s3_extra_folders():
                     }
                     added_styles += 1
 
-                # Add image entry with s3_url for direct serving
+                # Add image entry with s3_url for direct serving (no Dropbox link needed)
                 brand_data['styles'][style_code][photo_type].append({
-                    'path': f's3://{key}',   # pseudo-path for identification
+                    'path': f's3://{style_code}/{filename}',
                     'filename': filename,
                     'angle': angle,
                     'dpi': 72,
-                    's3_url': s3_url,         # direct public URL — no Dropbox link needed
+                    's3_url': s3_url,
                 })
                 added_images += 1
 
-            log.info(f'S3 extra folder "{s3_prefix}": added {added_styles} styles, {added_images} images')
+            log.info(f'S3 extra folder: added {added_styles} styles, '
+                     f'{added_images} images for {brand_full}')
 
         except Exception as e:
-            log.warning(f'Failed to load S3 extra folder "{s3_prefix}": {e}')
+            log.error(f'S3 extra folder load FAILED for "{raw_prefix}": {e}', exc_info=True)
 
 
 # ─── Temp Link Generation ────────────────────────────────────────────────────
@@ -742,6 +755,76 @@ def serve_frontend():
 @app.route('/api/status')
 def api_status():
     return jsonify(scan_status)
+
+
+@app.route('/api/debug/s3-jewelry')
+def api_debug_s3():
+    """Diagnostic: test S3 listing for Von Dutch Jewelry folder."""
+    import xml.etree.ElementTree as ET
+    import urllib.parse
+    
+    results = {'steps': []}
+    
+    for folder_cfg in S3_EXTRA_FOLDERS:
+        raw_prefix = folder_cfg['prefix']
+        
+        # Step 1: build URL
+        encoded_prefix = urllib.parse.quote(raw_prefix, safe='/')
+        list_url = f'{S3_BUCKET_URL}/?list-type=2&prefix={encoded_prefix}&max-keys=10'
+        results['list_url'] = list_url
+        results['steps'].append(f'Built URL: {list_url}')
+        
+        # Step 2: fetch
+        try:
+            req = urllib.request.Request(list_url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+            resp = urllib.request.urlopen(req, timeout=20)
+            xml_data = resp.read()
+            results['steps'].append(f'Got response: {len(xml_data)} bytes')
+            results['raw_xml_preview'] = xml_data[:2000].decode('utf-8', errors='replace')
+        except Exception as e:
+            results['steps'].append(f'FETCH FAILED: {e}')
+            results['error'] = str(e)
+            return jsonify(results), 500
+        
+        # Step 3: parse XML
+        try:
+            root = ET.fromstring(xml_data)
+            ns = ''
+            if root.tag.startswith('{'):
+                ns = root.tag.split('}')[0] + '}'
+            results['xml_namespace'] = ns
+            results['xml_root_tag'] = root.tag
+            
+            keys = []
+            for contents in root.findall(f'{ns}Contents'):
+                key_el = contents.find(f'{ns}Key')
+                if key_el is not None and key_el.text:
+                    keys.append(key_el.text)
+            
+            results['keys_found'] = len(keys)
+            results['keys'] = keys
+            results['steps'].append(f'Parsed {len(keys)} keys from XML')
+        except Exception as e:
+            results['steps'].append(f'XML PARSE FAILED: {e}')
+            results['error'] = str(e)
+        
+        # Step 4: check what's in the index for Von Dutch
+        vd_in_index = {}
+        for folder, bdata in photo_index.items():
+            if bdata['info'].get('abbr', '').upper() == 'VD':
+                s3_styles = {}
+                for sc, sd in bdata['styles'].items():
+                    s3_imgs = [img for img in sd.get('other', []) if img.get('s3_url')]
+                    if s3_imgs:
+                        s3_styles[sc] = [img['s3_url'] for img in s3_imgs]
+                vd_in_index = {
+                    'folder': folder,
+                    'total_styles': len(bdata['styles']),
+                    's3_jewelry_styles': s3_styles,
+                }
+        results['von_dutch_in_index'] = vd_in_index
+    
+    return jsonify(results)
 
 
 @app.route('/api/scan', methods=['POST'])
