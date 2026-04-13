@@ -757,7 +757,7 @@ def api_status():
     return jsonify(scan_status)
 
 
-@app.route('/api/debug/s3-jewelry')
+@app.route('/api/s3test')
 def api_debug_s3():
     """Diagnostic: test S3 listing for Von Dutch Jewelry folder."""
     import xml.etree.ElementTree as ET
