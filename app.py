@@ -33,6 +33,19 @@ INVENTORY_API_URL = os.environ.get('INVENTORY_API_URL', 'https://versa-inventory
 S3_INVENTORY_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/PHOTOS+INVENTORY'
 S3_OVERRIDE_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com/ALL+INVENTORY+Photos/STYLE+OVERRIDES'
 
+# S3 extra folders to pull directly into the photo index
+# Each entry: { prefix, brand_abbr, brand_full, s3_base_url }
+S3_EXTRA_FOLDERS = [
+    {
+        'prefix': 'ALL+INVENTORY+Photos/PHOTOS+INVENTORY/Von+Dutch/Von+Dutch+Jewelry/',
+        'brand_abbr': 'VD',
+        'brand_full': 'Von Dutch',
+        'brand_folder': 'Von Dutch',
+        'photo_type': 'other',   # default type for these images
+    },
+]
+S3_BUCKET_URL = 'https://nauticaslimfit.s3.us-east-2.amazonaws.com'
+
 # SKU brand code → image prefix (same as inventory index extractImageCode)
 BRAND_IMAGE_PREFIX = {
     "NAUTICA": "NA", "DKNY": "DK", "EB": "EB", "REEBOK": "RB", "VINCE": "VC",
@@ -399,11 +412,21 @@ def scan_dropbox():
         except Exception as e:
             log.warning(f'Inventory merge failed (non-fatal): {e}')
         
+        # Load S3 extra folders (e.g. Von Dutch Jewelry)
+        try:
+            scan_status['progress'] = 'Loading S3 extra folders...'
+            _load_s3_extra_folders()
+        except Exception as e:
+            log.warning(f'S3 extra folders load failed (non-fatal): {e}')
+        
         # Update counts after merge
         with scan_lock:
             scan_status['brands'] = len(photo_index)
             scan_status['styles'] = sum(len(b['styles']) for b in photo_index.values())
-            scan_status['images'] = total_images
+            scan_status['images'] = sum(
+                sum(len(s[t]) for t in ['ghost', 'model', 'other'])
+                for b in photo_index.values() for s in b['styles'].values()
+            )
             scan_status['progress'] = 'Complete'
         
     except Exception as e:
@@ -541,6 +564,117 @@ def _load_dropbox_photo_codes():
     
     except Exception as e:
         log.warning(f'Failed to fetch dropbox photo codes: {e}')
+
+
+# ─── S3 Extra Folder Loader ─────────────────────────────────────────────────
+def _load_s3_extra_folders():
+    """Fetch image listings from S3 extra folders (e.g. Von Dutch Jewelry).
+    
+    Uses the S3 List Objects v2 API on the public bucket to enumerate files,
+    then groups them by style number and merges into the photo index.
+    """
+    global photo_index
+    import xml.etree.ElementTree as ET
+
+    for folder_cfg in S3_EXTRA_FOLDERS:
+        s3_prefix = folder_cfg['prefix']
+        brand_abbr = folder_cfg['brand_abbr']
+        brand_full = folder_cfg['brand_full']
+        brand_folder_name = folder_cfg['brand_folder']
+        photo_type = folder_cfg.get('photo_type', 'other')
+
+        try:
+            # S3 List Objects v2 — public bucket, no auth needed
+            list_url = f'{S3_BUCKET_URL}?list-type=2&prefix={s3_prefix}&max-keys=500'
+            log.info(f'Fetching S3 listing: {list_url}')
+            req = urllib.request.Request(list_url, headers={'User-Agent': 'VersaPhotoStudio/1.0'})
+            resp = urllib.request.urlopen(req, timeout=20)
+            xml_data = resp.read()
+            root = ET.fromstring(xml_data)
+
+            # S3 XML namespace
+            ns = ''
+            if root.tag.startswith('{'):
+                ns = root.tag.split('}')[0] + '}'
+
+            keys = []
+            for contents in root.findall(f'{ns}Contents'):
+                key_el = contents.find(f'{ns}Key')
+                if key_el is not None and key_el.text:
+                    keys.append(key_el.text)
+
+            # Filter to image files only
+            image_keys = [k for k in keys if os.path.splitext(k)[1].lower() in IMAGE_EXTS]
+            if not image_keys:
+                log.info(f'No images found in S3 folder: {s3_prefix}')
+                continue
+
+            log.info(f'Found {len(image_keys)} images in S3 folder: {s3_prefix}')
+
+            # Ensure brand exists in the index
+            target_folder = None
+            for folder, bdata in photo_index.items():
+                if bdata['info'].get('abbr', '').upper() == brand_abbr.upper():
+                    target_folder = folder
+                    break
+
+            if not target_folder:
+                target_folder = brand_folder_name
+                photo_index[target_folder] = {
+                    'info': {
+                        'abbr': brand_abbr,
+                        'prefix': BRAND_IMAGE_PREFIX.get(brand_abbr, brand_abbr[:2]),
+                        'full': brand_full,
+                    },
+                    'styles': {},
+                }
+
+            brand_data = photo_index[target_folder]
+            added_styles = 0
+            added_images = 0
+
+            for key in image_keys:
+                filename = os.path.basename(key)
+                name_no_ext = os.path.splitext(filename)[0]
+
+                # Parse style code from filename
+                # Pattern: BVDNP010BC-1.jpg → style = BVDNP010BC, variant = 1
+                # Also handle: BVDNP010BC.jpg (no variant suffix)
+                parts_match = re.match(r'^(.+?)(?:-(\d+))?$', name_no_ext)
+                if not parts_match:
+                    continue
+
+                style_code = parts_match.group(1).upper()
+                variant = parts_match.group(2) or '1'
+
+                # Build the direct S3 URL (URL-encode the key using + for spaces)
+                s3_url = f'{S3_BUCKET_URL}/{key.replace(" ", "+")}'
+
+                # Determine angle from variant number
+                angle_map = {'1': 'front', '2': 'back', '3': 'side', '4': 'detail', '5': 'detail2'}
+                angle = angle_map.get(variant, f'view {variant}')
+
+                # Create style entry if needed
+                if style_code not in brand_data['styles']:
+                    brand_data['styles'][style_code] = {
+                        'ghost': [], 'model': [], 'other': []
+                    }
+                    added_styles += 1
+
+                # Add image entry with s3_url for direct serving
+                brand_data['styles'][style_code][photo_type].append({
+                    'path': f's3://{key}',   # pseudo-path for identification
+                    'filename': filename,
+                    'angle': angle,
+                    'dpi': 72,
+                    's3_url': s3_url,         # direct public URL — no Dropbox link needed
+                })
+                added_images += 1
+
+            log.info(f'S3 extra folder "{s3_prefix}": added {added_styles} styles, {added_images} images')
+
+        except Exception as e:
+            log.warning(f'Failed to load S3 extra folder "{s3_prefix}": {e}')
 
 
 # ─── Temp Link Generation ────────────────────────────────────────────────────
@@ -700,7 +834,16 @@ def api_style_images(brand_folder, style_code):
             if skip_links:
                 # Fast mode: return paths only, no Dropbox API calls
                 result[ptype].append({
-                    'url': '',
+                    'url': img.get('s3_url', ''),  # S3 images have direct URL even in fast mode
+                    'filename': img['filename'],
+                    'angle': img['angle'],
+                    'dpi': img['dpi'],
+                    'path': img['path'],
+                })
+            elif img.get('s3_url'):
+                # S3-sourced image — use direct public URL, no Dropbox needed
+                result[ptype].append({
+                    'url': img['s3_url'],
                     'filename': img['filename'],
                     'angle': img['angle'],
                     'dpi': img['dpi'],
@@ -734,7 +877,34 @@ def api_links():
     
     # Limit batch size
     paths = paths[:50]
-    links = get_temp_links_batch(paths)
+    
+    # Separate S3 paths (already have public URLs) from Dropbox paths
+    links = {}
+    dbx_paths = []
+    for p in paths:
+        if p.startswith('s3://'):
+            # Look up the direct URL from the photo index
+            for brand_data in photo_index.values():
+                found = False
+                for style_data in brand_data['styles'].values():
+                    for ptype in ['ghost', 'model', 'other']:
+                        for img in style_data[ptype]:
+                            if img['path'] == p and img.get('s3_url'):
+                                links[p] = img['s3_url']
+                                found = True
+                                break
+                        if found:
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+        else:
+            dbx_paths.append(p)
+    
+    # Get Dropbox temp links for non-S3 paths
+    if dbx_paths:
+        links.update(get_temp_links_batch(dbx_paths))
     return jsonify({'links': links})
 
 
